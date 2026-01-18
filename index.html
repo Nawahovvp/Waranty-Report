@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกข้อมูล</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --surface-color: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --hover-color: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            height: 100vh;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Generic Button */
+        .btn {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--hover-color);
+        }
+
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-card {
+            background: var(--surface-color);
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-card h2 {
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        /* Main App */
+        #mainApp {
+            display: none;
+            height: 100%;
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .main-full-container {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: var(--surface-color);
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        header {
+            padding: 0.5rem 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--surface-color);
+            position: relative;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Menu Dropdown */
+        .menu-container {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 0.5rem;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            padding: 1rem;
+            min-width: 250px;
+            z-index: 50;
+            text-align: right;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .user-name {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .user-details {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            white-space: pre-line;
+            line-height: 1.4;
+        }
+
+        .btn-logout {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: #fef2f2;
+            color: #ef4444;
+            border: 1px solid #fee2e2;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            background-color: #fee2e2;
+        }
+
+        /* Table */
+        .table-container {
+            overflow: auto;
+            flex: 1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        thead th {
+            background-color: #f8fafc;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.5rem 0.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        tbody td {
+            padding: 0.5rem 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        tbody tr:hover {
+            background-color: var(--hover-color);
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+        }
+
+        /* Pagination */
+        .pagination {
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: var(--surface-color);
+        }
+
+        .pagination button {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            min-width: 40px;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background-color: var(--hover-color);
+            border-color: var(--primary-color);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #f1f5f9;
+        }
+
+        .pagination button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: #f8fafc;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            min-width: 200px;
+            max-width: 400px;
+            background-color: white;
+            color: var(--text-primary);
+        }
+
+        /* Edit Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            display: none;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .modal-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .modal-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .status-btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+
+        .status-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .status-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Ensure SweetAlert is on top of custom modals */
+        .swal2-container {
+            z-index: 20000 !important;
+        }
+
+        /* Action Buttons */
+        .btn-warning {
+            padding: 0.5rem 1rem;
+            background-color: #f59e0b;
+            /* Amber 500 */
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+
+        .btn-danger {
+            padding: 0.5rem 1rem;
+            background-color: #ef4444;
+            /* Red 500 */
+            color: white;
+            border: none;
+            border-radius: 6px;
+
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        /* Bulk Action Buttons */
+        .btn-sworp {
+            background-color: #6366f1;
+            /* Indigo 500 */
+            color: white;
+            border: none;
+            padding: 0.35rem 0.85rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .btn-sworp:hover {
+            background-color: #4f46e5;
+            transform: translateY(-1px);
+        }
+
+        .btn-expired {
+            background-color: #f97316;
+            /* Orange 500 */
+            color: white;
+            border: none;
+            padding: 0.35rem 0.85rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .btn-expired:hover {
+            background-color: #ea580c;
+            transform: translateY(-1px);
+        }
+
+        .btn-damaged {
+            background-color: #ec4899;
+            /* Pink 500 */
+            color: white;
+            border: none;
+            padding: 0.35rem 0.85rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .btn-damaged:hover {
+            background-color: #db2777;
+            transform: translateY(-1px);
+        }
+
+        .btn-damaged:hover {
+            background-color: #db2777;
+            transform: translateY(-1px);
+        }
+
+        /* Tabs */
+        .tabs-header {
+            display: flex;
+            background-color: white;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 1rem;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.875rem;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: -1px;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            /* Changed from auto to hidden to manage child scroll */
+            position: relative;
+            /* For absolute pos children */
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Login Screen -->
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h2>Welcome Back</h2>
+            <div class="input-group">
+                <label for="idInput">Employee ID</label>
+                <input type="text" id="idInput" placeholder="Enter IDRec">
+            </div>
+            <div class="input-group">
+                <label for="passInput">Password</label>
+                <input type="password" id="passInput" placeholder="Last 4 digits of IDRec">
+            </div>
+            <button class="btn-primary" onclick="handleLogin()">Login</button>
+            <p id="loginError" class="error-msg">Invalid ID or Password</p>
+        </div>
+    </div>
+    </div>
+
+    <!-- Edit Serial Modal -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="modal-header">Edit Serial Number</h3>
+            <div class="input-group">
+                <label for="editSerialInput">Serial Number</label>
+                <input type="text" id="editSerialInput" placeholder="Enter new serial number">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeEditModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveSerialNumber()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Detail Modal -->
+    <div id="storeModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                Warranty Claim Processing <br>
+                <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">Manage details for
+                    warranty claim</span>
+            </div>
+
+            <!-- Section 1: Reference Information (Work Order & Store) -->
+            <div class="modal-section">
+                <div class="modal-section-title">Reference Information</div>
+                <div class="input-group" style="margin-bottom: 1rem;">
+                    <label>Reference Work Order</label>
+                    <input type="text" id="store_workOrder" disabled
+                        style="background-color: #f8fafc; font-size: 0.875rem;">
+                </div>
+                <div class="grid-2" style="grid-template-columns: 1fr 3fr;">
+                    <div class="input-group">
+                        <label>Store Code</label>
+                        <input type="text" id="store_code" disabled style="background-color: #f8fafc;">
+                    </div>
+                    <div class="input-group">
+                        <label>Store Name</label>
+                        <input type="text" id="store_name" disabled style="background-color: #f8fafc;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Part & Claim Details -->
+            <div class="modal-section">
+                <div class="modal-section-title">Item Details</div>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Part Code</label>
+                        <input type="text" id="store_partCode" disabled style="background-color: #f8fafc;">
+                    </div>
+                    <div class="input-group">
+                        <label>Claim Qty</label>
+                        <input type="number" id="store_qty" disabled style="background-color: #f8fafc;">
+                    </div>
+                </div>
+                <div class="input-group" style="margin-top: 1rem;">
+                    <label>Spare Part Name</label>
+                    <input type="text" id="store_partName" disabled
+                        style="background-color: #f8fafc; font-weight: 500;">
+                </div>
+                <!-- Serial Number (Editable) -->
+                <div class="input-group" style="margin-top: 1rem;">
+                    <label style="color: var(--primary-color);">Serial Number (Editable)</label>
+                    <input type="text" id="store_serial" style="border-color: var(--primary-color);">
+                </div>
+            </div>
+
+            <!-- Section 3: Warranty Action -->
+            <div class="modal-section">
+                <div class="modal-section-title">Warranty Action</div>
+                <div class="status-btn-group">
+                    <button type="button" class="status-btn"
+                        onclick="selectAction(this, 'เคลมประกัน')">เคลมประกัน</button>
+                    <button type="button" class="status-btn" onclick="selectAction(this, 'Sworp')">Sworp</button>
+                    <button type="button" class="status-btn"
+                        onclick="selectAction(this, 'หมดประกัน')">หมดประกัน</button>
+                    <button type="button" class="status-btn" onclick="selectAction(this, 'ชำรุด')">ชำรุด</button>
+                </div>
+                <input type="hidden" id="store_actionStatus">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn" onclick="closeStoreModal()">Cancel</button>
+                <button class="btn-primary" id="btnSaveStore" onclick="saveStoreDetail()">Confirm & Save</button>
+                <button class="btn-warning" id="btnUpdateStore" onclick="saveStoreDetail()"
+                    style="display: none;">Update (แก้ไข)</button>
+                <button class="btn-danger" id="btnDeleteStore" onclick="deleteStoreDetail()"
+                    style="display: none;">Delete (ลบ)</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" style="display: none;">
+        <div class="main-full-container">
+            <header>
+                <h1>บันทึกข้อมูล</h1>
+                <div class="menu-container">
+                    <button class="btn" onclick="toggleMenu()">
+                        <span class="font-medium">Menu</span>
+                    </button>
+                    <div class="dropdown-menu" id="userDropdown">
+                        <div class="user-name" id="displayUserName">User Name</div>
+                        <div class="user-details" id="displayUserDetail">Position | Unit | Plant</div>
+                        <button class="btn-logout" onclick="handleLogout()">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Tab Navigation -->
+            <div class="tabs-header">
+                <div class="tab-btn active" onclick="switchTab('main')">บันทึกข้อมูล (Save Data)</div>
+                <div class="tab-btn" onclick="switchTab('booking')">บันทึกจองรถส่งคลังกลาง</div>
+            </div>
+
+            <!-- Tab 1: Main Data (Existing Content) -->
+            <div id="tab-content-main" class="tab-content active">
+
+                <div class="search-bar"
+                    style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background-color: #f8fafc;">
+                    <input type="text" id="searchInput" placeholder="Search..."
+                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem;"
+                        oninput="handleSearch()">
+                </div>
+
+                <div class="filter-bar">
+                    <label for="sparePartFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
+                        Part:</label>
+                    <select id="sparePartFilter" class="filter-select" onchange="handleFilterChange()">
+                        <option value="">All Spare Parts</option>
+                    </select>
+                    <div
+                        style="font-size: 0.875rem; font-weight: 600; color: var(--text-primary); border-left: 1px solid var(--border-color); padding-left: 1rem; display: flex; align-items: center; gap: 1rem;">
+                        <div>จำนวน <span id="totalQtyValue" style="color: var(--primary-color); font-size: 1rem;">0
+                                PC</span></div>
+
+                        <!-- Bulk Actions -->
+                        <div id="bulkActions" style="display: none; gap: 0.5rem; align-items: center;">
+                            <span
+                                style="color: var(--text-secondary); font-size: 0.8em; font-weight: normal; margin-right: 0.25rem;">Selected
+                                Action:</span>
+                            <button onclick="processBulkAction('Sworp')" class="btn-sworp">Sworp</button>
+                            <button onclick="processBulkAction('หมดประกัน')" class="btn-expired">หมดประกัน</button>
+                            <button onclick="processBulkAction('ชำรุด')" class="btn-damaged">ชำรุด</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="dataTable">
+                        <thead>
+                            <tr id="tableHeader">
+                                <!-- Headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                    <div id="loadingIndicator" class="loading">
+                        <p>Loading records...</p>
+                    </div>
+                </div>
+
+                <div class="pagination" id="paginationControls">
+                    <!-- Buttons injected by JS -->
+                </div>
+            </div> <!-- End Tab 1 -->
+
+            <!-- Tab 2: Booking (Data Content) -->
+            <div id="tab-content-booking" class="tab-content">
+                <div class="table-container">
+                    <table id="bookingTable">
+                        <thead>
+                            <tr id="bookingTableHeader"></tr>
+                        </thead>
+                        <tbody id="bookingTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRAP_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C1MeLvv2PrOEQsqmXQplZt1xLuD5Z4KUGOrnGjYrh_A/gviz/tq?tqx=out:csv&sheet=Scrap';
+        const WORKFILTER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C-_TRQcz2w0ia9bF9BfFcln5X_dX8T_cNfVUI-oU8ho/gviz/tq?tqx=out:csv&sheet=WorkFilter';
+        const EMPLOYEE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1eqVoLsZxGguEbRCC5rdI4iMVtQ7CK4T3uXRdx8zE3uw/gviz/tq?tqx=out:csv&sheet=EmployeeWeb';
+        const WARRANTY_SHEET_URL = 'https://docs.google.com/spreadsheets/d/19WWSESBcerEUlEDzM4lu3cglPoTHOWUl4P0prexqYpc/gviz/tq?tqx=out:csv&sheet=WarrantyData';
+
+        // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx6cP4AV_0XB2aMDIk2NI1RpOuKiJI-HdOteqmbzusmN7B4S2CISomwVyMkTKBFPIM3lQ/exec';
+
+        const COLUMNS = [
+            { header: '<input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes(this)">', source: 'C', key: 'checkbox' },
+            { header: 'Status', source: 'C', key: 'status' },
+            { header: 'Work Order', source: 'S', key: 'work order' },
+            { header: 'Spare Part Code', source: 'S', key: 'Spare Part Code' },
+            { header: 'Spare Part Name', source: 'S', key: 'Spare Part Name' },
+            { header: 'Old Material Code', source: 'S', key: 'old material code' },
+            { header: 'Qty', source: 'S', key: 'qty' },
+            { header: 'Serial Number', source: 'W', key: 'Serial Number' },
+            { header: 'Store Code', source: 'W', key: 'Store Code' },
+            { header: 'Store Name', source: 'W', key: 'Store Name' },
+            { header: 'Date Received', source: 'S', key: 'วันที่รับซาก' },
+            { header: 'Receiver', source: 'S', key: 'ผู้รับซาก' },
+            { header: 'Plant', source: 'S', key: 'plant' },
+            { header: 'Keep', source: 'S', key: 'Keep' },
+            { header: 'CI Name', source: 'W', key: 'CI Name' },
+            { header: 'Problem', source: 'W', key: 'Problem' },
+            { header: 'Product Type', source: 'W', key: 'Product Type' },
+            { header: 'Product', source: 'W', key: 'Product' }
+        ];
+
+        const BOOKING_COLUMNS = [
+            { header: 'Work Order', key: 'Work Order' },
+            { header: 'Spare Part Code', key: 'Spare Part Code' },
+            { header: 'Spare Part Name', key: 'Spare Part Name' },
+            { header: 'Old Material Code', key: 'Old Material Code' },
+            { header: 'Qty', key: 'Qty' },
+            { header: 'Serial Number', key: 'Serial Number' },
+            { header: 'Store Code', key: 'Store Code' },
+            { header: 'Store Name', key: 'Store Name' },
+            { header: 'Plant', key: 'Plant' }, // Added Plant
+            { header: 'Product', key: 'Product' },
+            { header: 'Warranty Action', key: 'Warranty Action' },
+            { header: 'Recorder', key: 'Recorder' },
+            { header: 'Timestamp', key: 'Timestamp' },
+            { header: 'Booking Slip', key: 'Booking Slip' },
+            { header: 'Booking Date', key: 'Booking Date' },
+        ];
+
+        let allEmployees = [];
+        let fullData = []; // Master data (filtered by plant)
+        let displayedData = []; // Data currently shown (filtered by UI)
+        let globalBookingData = []; // Store raw warranty data for second tab
+        let currentPage = 1;
+        let editingItem = null; // Item currently being edited
+        const ITEMS_PER_PAGE = 20;
+
+        async function fetchData(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+                const csvText = await response.text();
+                return new Promise((resolve, reject) => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => resolve(results.data),
+                        error: (err) => reject(err)
+                    });
+                });
+            } catch (e) {
+                console.error("Fetch Error:", e);
+                return [];
+            }
+        }
+
+        async function initAuth() {
+            allEmployees = await fetchData(EMPLOYEE_SHEET_URL);
+            console.log("Employees Loaded:", allEmployees.length);
+
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                showApp(user);
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        }
+
+        function handleLogin() {
+            const idInput = document.getElementById('idInput').value.trim();
+            const passInput = document.getElementById('passInput').value.trim();
+            const errorMsg = document.getElementById('loginError');
+
+            if (!idInput || !passInput) {
+                errorMsg.textContent = "Please enter ID and Password";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const user = allEmployees.find(emp => emp['IDRec'] === idInput);
+
+            if (user) {
+                const expectedPass = user['IDRec'].slice(-4);
+                if (passInput === expectedPass) {
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                    errorMsg.style.display = 'none';
+                    showApp(user);
+                } else {
+                    errorMsg.textContent = "Incorrect Password";
+                    errorMsg.style.display = 'block';
+                }
+            } else {
+                errorMsg.textContent = "User ID not found";
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('currentUser');
+            location.reload();
+        }
+
+        function showApp(user) {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+
+            document.getElementById('displayUserName').textContent = user['Name'] || user['IDRec'];
+            const details = [
+                user['ตำแหน่ง'],
+                user['หน่วยงาน'],
+                user['Team'],
+                user['Plant']
+            ].filter(Boolean).join(' | ');
+            document.getElementById('displayUserDetail').textContent = details;
+
+            loadTableData();
+        }
+
+        function toggleMenu() {
+            const menu = document.getElementById('userDropdown');
+            menu.classList.toggle('show');
+        }
+
+        window.onclick = function (event) {
+            if (!event.target.closest('.menu-container')) {
+                const dropdowns = document.getElementsByClassName("dropdown-menu");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+
+
+        function switchTab(tabId) {
+            // Update Header
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // Match clicking button text or index? Simplest to assume 2 tabs.
+            // Actually, querying by onclick attribute is messy.
+            // Let's rely on event target or simple class toggle.
+            // Refactor: We need to highlight the correct nav button.
+            // Let's assume order: 0 = main, 1 = booking
+            const tabs = document.querySelectorAll('.tab-btn');
+            if (tabId === 'main') {
+                tabs[0].classList.add('active');
+                document.getElementById('tab-content-main').classList.add('active');
+                document.getElementById('tab-content-booking').classList.remove('active');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('tab-content-main').classList.remove('active');
+                document.getElementById('tab-content-booking').classList.add('active');
+            }
+        }
+
+        async function loadTableData() {
+            try {
+                const [scrapData, workFilterData, warrantyData] = await Promise.all([
+                    fetchData(SCRAP_SHEET_URL),
+                    fetchData(WORKFILTER_SHEET_URL),
+                    fetchData(WARRANTY_SHEET_URL)
+                ]);
+
+                // Create Set of Saved Keys (KEY column in WarrantyData)
+                // Create Set of Saved Keys (KEY column in WarrantyData)
+                const workFilterMap = new Map();
+                workFilterData.forEach(row => {
+                    const key = row['Work Order Number 1']?.trim();
+                    if (key) workFilterMap.set(key, row);
+                });
+
+                // Get Current User Plant & Normalize
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const userPlant = currentUser['Plant'] ? currentUser['Plant'].toString().trim().padStart(4, '0') : null;
+
+                // Create Set of Saved Keys AND Filter Global Booking Data
+                // Filter warrantyData by userPlant
+                if (userPlant) {
+                    globalBookingData = warrantyData.filter(row => {
+                        const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
+                        return rowPlant === userPlant;
+                    });
+                } else {
+                    globalBookingData = warrantyData;
+                }
+
+                // Render Booking Table immediately
+                renderBookingTable();
+
+                const savedKeys = new Set(warrantyData.map(row => row['KEY'] ? row['KEY'].toString().trim() : ''));
+
+                // Join Data & Normalize Data Plant
+                fullData = scrapData.map(scrapRow => {
+                    // Normalize Plant in Data (e.g. "326" -> "0326")
+                    if (scrapRow['plant']) {
+                        scrapRow['plant'] = scrapRow['plant'].toString().trim().padStart(4, '0');
+                    }
+
+                    const workOrderKey = scrapRow['work order']?.trim();
+
+                    // Generate KEY for status check (Work Order + Spare Part Code)
+                    const uniqueKey = (scrapRow['work order'] || '') + (scrapRow['Spare Part Code'] || '');
+                    const isSaved = savedKeys.has(uniqueKey);
+
+                    return {
+                        scrap: scrapRow,
+                        fullRow: workFilterMap.get(workOrderKey) || {},
+                        status: isSaved ? 'บันทึกแล้ว' : ''
+                    };
+                });
+
+                // Filter by User Plant if exists
+                if (userPlant) {
+                    fullData = fullData.filter(item => item.scrap['plant'] === userPlant);
+                }
+
+                // Initialize Displayed Data
+                displayedData = [...fullData];
+                populateFilters();
+                updateTotalQty();
+
+                const tableHeader = document.getElementById('tableHeader');
+                tableHeader.innerHTML = '';
+                COLUMNS.forEach(col => {
+                    const th = document.createElement('th');
+                    // Check if header contains HTML (like input checkbox)
+                    if (col.header.includes('<')) {
+                        th.innerHTML = col.header;
+                    } else {
+                        th.textContent = col.header;
+                    }
+                    tableHeader.appendChild(th);
+                });
+
+                document.getElementById('loadingIndicator').style.display = 'none';
+
+                // Initial Render
+                currentPage = 1; // Reset to page 1 on new data load
+                renderTable();
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loadingIndicator').innerHTML = `<div class="error">Error loading data: ${err.message}</div>`;
+            }
+        }
+
+        function populateFilters() {
+            const filterSelect = document.getElementById('sparePartFilter');
+
+            // Get unique Spare Part Names from fullData
+            const uniqueParts = [...new Set(fullData.map(item => item.scrap['Spare Part Name']).filter(Boolean))].sort();
+
+            // Keep current selection if possible, otherwise reset
+            const currentSelection = filterSelect.value;
+
+            filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+
+            uniqueParts.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part;
+                option.textContent = part;
+                filterSelect.appendChild(option);
+            });
+
+            if (uniqueParts.includes(currentSelection)) {
+                filterSelect.value = currentSelection;
+            }
+        }
+
+        function handleFilterChange() {
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function handleSearch() {
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const selectedPart = document.getElementById('sparePartFilter').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            displayedData = fullData.filter(item => {
+                // 1. Filter by Spare Part
+                const matchPart = selectedPart ? item.scrap['Spare Part Name'] === selectedPart : true;
+
+                // 2. Filter by Search Term (All Columns)
+                let matchSearch = true;
+                if (searchTerm) {
+                    // Combine all values from scrap and fullRow
+                    const allValues = [
+                        ...Object.values(item.scrap),
+                        ...Object.values(item.fullRow)
+                    ].join(' ').toLowerCase();
+                    matchSearch = allValues.includes(searchTerm);
+                }
+
+                return matchPart && matchSearch;
+            });
+
+            updateTotalQty();
+            renderTable();
+        }
+
+        function updateTotalQty() {
+            const total = displayedData.reduce((sum, item) => {
+                const qty = parseFloat(item.scrap['qty']) || 0;
+                return sum + qty;
+            }, 0);
+            document.getElementById('totalQtyValue').textContent = total.toLocaleString() + ' PC';
+        }
+
+        function renderTable() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const pageData = displayedData.slice(startIndex, endIndex);
+
+            pageData.forEach((item, index) => {
+                const tr = document.createElement('tr');
+
+                COLUMNS.forEach(col => {
+                    const td = document.createElement('td');
+                    let value = '';
+                    if (col.source === 'S') value = item.scrap[col.key] || '';
+                    else if (col.source === 'C') value = item.status; // Computed status
+                    else value = item.fullRow[col.key] || '';
+
+                    // Checkbox Column
+                    if (col.key === 'checkbox') {
+                        td.innerHTML = `<input type="checkbox" class="row-checkbox" value="${startIndex + index}" onchange="handleCheckboxChange()">`;
+                        td.style.textAlign = 'center';
+                        tr.appendChild(td);
+                        return; // Skip other rendering for this col
+                    }
+
+                    // Apply Green Tab Style for specific columns if Saved
+                    const greenColumns = ['status', 'work order', 'Spare Part Code', 'Spare Part Name', 'old material code', 'qty', 'Serial Number', 'Store Code', 'Store Name'];
+                    if (item.status === 'บันทึกแล้ว' && greenColumns.includes(col.key)) {
+                        const span = document.createElement('span');
+                        span.textContent = value;
+                        span.style.backgroundColor = '#dcfce7'; // Green-100
+                        span.style.color = '#166534'; // Green-700
+                        span.style.fontSize = '0.75rem'; // Small size
+                        span.style.fontWeight = '600';
+                        span.style.padding = '0.25rem 0.5rem';
+                        span.style.borderRadius = '4px';
+                        span.style.display = 'inline-block'; // Ensure padding works
+                        td.appendChild(span);
+                    } else {
+                        td.textContent = value;
+                    }
+
+
+
+                    if (col.key === 'Store Code') {
+                        td.style.cursor = 'pointer';
+                        td.style.color = 'var(--primary-color)';
+                        td.style.fontWeight = '500';
+                        td.title = 'Click to view details';
+                        td.onclick = () => openStoreModal(item);
+                    }
+
+
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const container = document.getElementById('paginationControls');
+            container.innerHTML = '';
+
+            const totalPages = Math.ceil(displayedData.length / ITEMS_PER_PAGE);
+            if (totalPages === 0) return;
+
+            const createButton = (text, onClick, disabled = false, isActive = false) => {
+                const btn = document.createElement('button');
+                btn.textContent = text;
+                btn.onclick = onClick;
+                btn.disabled = disabled;
+                if (isActive) btn.classList.add('active');
+                return btn;
+            };
+
+            // << First
+            container.appendChild(createButton('<<', () => changePage(1), currentPage === 1));
+
+            // < Prev
+            container.appendChild(createButton('<', () => changePage(currentPage - 1), currentPage === 1));
+
+            // Current Page Number
+            container.appendChild(createButton(currentPage, () => { }, false, true));
+
+            // > Next
+            container.appendChild(createButton('>', () => changePage(currentPage + 1), currentPage === totalPages));
+
+            // >> Last
+            container.appendChild(createButton('>>', () => changePage(totalPages), currentPage === totalPages));
+        }
+
+        function changePage(newPage) {
+            currentPage = newPage;
+            renderTable();
+            // Maybe scroll to top of table?
+            document.querySelector('.table-container').scrollTop = 0;
+        }
+
+        function openEditModal(item) {
+            editingItem = item;
+            const currentSerial = item.fullRow['Serial Number'] || '';
+            document.getElementById('editSerialInput').value = currentSerial;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingItem = null;
+        }
+
+        function saveSerialNumber() {
+            if (!editingItem) return;
+
+            const newSerial = document.getElementById('editSerialInput').value.trim();
+
+            // Update the item in memory
+            // Note: Serial Number comes from WorkFilter ('W'), so we update fullRow
+            editingItem.fullRow['Serial Number'] = newSerial;
+
+            // Re-render to show changes
+            renderTable();
+
+            // Close modal
+            closeEditModal();
+        }
+
+        function openStoreModal(item) {
+            editingItem = item;
+
+            // Populate fields
+            // S Source
+            document.getElementById('store_workOrder').value = item.scrap['work order'] || '';
+            document.getElementById('store_partCode').value = item.scrap['Spare Part Code'] || '';
+            document.getElementById('store_partName').value = item.scrap['Spare Part Name'] || '';
+            document.getElementById('store_qty').value = item.scrap['qty'] || '';
+
+            // W Source
+            document.getElementById('store_serial').value = item.fullRow['Serial Number'] || '';
+            document.getElementById('store_code').value = item.fullRow['Store Code'] || '';
+            document.getElementById('store_name').value = item.fullRow['Store Name'] || '';
+
+            // Load saved status or default
+            const currentStatus = item.fullRow['ActionStatus'] || 'เคลมประกัน';
+            setButtonActive(currentStatus);
+
+            // Toggle Buttons based on saved status
+            const btnSave = document.getElementById('btnSaveStore');
+            const btnUpdate = document.getElementById('btnUpdateStore');
+            const btnDelete = document.getElementById('btnDeleteStore');
+
+            if (item.status === 'บันทึกแล้ว') {
+                btnSave.style.display = 'none';
+                btnUpdate.style.display = 'inline-block';
+                btnDelete.style.display = 'inline-block';
+            } else {
+                btnSave.style.display = 'inline-block';
+                btnUpdate.style.display = 'none';
+                btnDelete.style.display = 'none';
+            }
+
+            document.getElementById('storeModal').style.display = 'flex';
+        }
+
+        function selectAction(btn, value) {
+            // Remove active class from all
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+            // Add to clicked
+            btn.classList.add('active');
+            // Set hidden input
+            document.getElementById('store_actionStatus').value = value;
+        }
+
+        function setButtonActive(value) {
+            document.getElementById('store_actionStatus').value = value;
+            document.querySelectorAll('.status-btn').forEach(btn => {
+                if (btn.textContent === value) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function closeStoreModal() {
+            document.getElementById('storeModal').style.display = 'none';
+            editingItem = null;
+        }
+
+        function saveStoreDetail() {
+            if (!editingItem) return;
+
+            // REMOVED 'Already Saved' Blocker to allow edits
+
+            const serialInput = document.getElementById('store_serial').value.trim();
+            const actionStatus = document.getElementById('store_actionStatus').value;
+
+            // Validation: Check if empty or less than 8 characters (ONLY IF Claim Warranty)
+            if (actionStatus === 'เคลมประกัน') {
+                if (!serialInput || serialInput.length < 8) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'ตรวจสอบข้อมูล',
+                        text: 'กรุณาตรวจสอบ Serial Number ให้ถูกต้องว่าเป็น Serial ของเครื่องจริงนะ',
+                    });
+                    return;
+                }
+            }
+
+            // Only Serial Number is allowed to be edited
+            editingItem.fullRow['Serial Number'] = serialInput;
+            // Save Action Status
+            editingItem.fullRow['ActionStatus'] = document.getElementById('store_actionStatus').value;
+
+            renderTable();
+
+            // Sync to Google Sheet (must be before closing modal which clears editingItem)
+            sendDatatoGAS(editingItem);
+
+            closeStoreModal();
+        }
+
+        async function deleteStoreDetail() {
+            if (!editingItem) return;
+
+            // Confirm Delete
+            const result = await Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "คุณต้องการลบข้อมูลนี้ออกจากระบบใช่หรือไม่?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'ลบข้อมูล (Delete)'
+            });
+
+            if (!result.isConfirmed) return;
+
+            // Show Loading
+            Swal.fire({ title: 'Deleting...', text: 'Updating Google Sheet...', didOpen: () => Swal.showLoading() });
+
+            const payload = {
+                'work order': editingItem.scrap['work order'],
+                'Spare Part Code': editingItem.scrap['Spare Part Code'],
+                'operation': 'delete' // Special flag for GAS
+            };
+
+            try {
+                await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                Swal.fire('Deleted!', 'Record has been deleted.', 'success');
+
+                // Clear local status
+                editingItem.status = '';
+                editingItem.fullRow = {}; // Clear fetched data
+
+                renderTable();
+                closeStoreModal();
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Failed to delete.', 'error');
+            }
+        }
+
+        function sendDatatoGAS(item) {
+            if (!GAS_API_URL) {
+                alert("Please configure the Google Apps Script URL in the code to save to Sheets.");
+                return;
+            }
+
+            // Get Current User (Fix ReferenceError)
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+            // Combine data sources
+            const payload = {
+                ...item.scrap,
+                ...item.fullRow,
+                'user': currentUser.IDRec || 'Unknown',
+                'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน',
+                'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', // Take from window as requested
+                'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '' // Take from window as requested
+            };
+
+            // Remove 'Values' key if present to avoid confusion
+            delete payload['Values'];
+
+            // UI Feedback (SweetAlert2)
+            const saveBtn = document.querySelector('#storeModal .btn-primary');
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+
+            // Show Loading
+            Swal.fire({
+                title: 'Saving...',
+                text: 'Please wait while we save your data.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Important for GAS Web App
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(() => {
+                    // Success
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Saved!',
+                        text: 'Data successfully saved to Google Sheet.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+
+                    // Optimistic UI Update
+                    item.status = 'บันทึกแล้ว';
+                    // Also update the 'user' field in fullRow so it shows up if we look at it
+                    item.fullRow['user'] = payload['user'];
+
+                    renderTable(); // Re-render DOM
+                })
+                .catch(error => {
+                    console.error('Error saving to GAS:', error);
+                    // Error
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Failed to save to Google Sheet. Please try again.',
+                    });
+                })
+                .finally(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.disabled = false;
+                });
+        }
+
+        function toggleAllCheckboxes(source) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = source.checked;
+            });
+            handleCheckboxChange();
+        }
+
+        function handleCheckboxChange() {
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            const bulkActions = document.getElementById('bulkActions');
+            if (checkboxes.length > 0) {
+                bulkActions.style.display = 'flex';
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        async function processBulkAction(actionName) {
+            const savedKeys = new Set();
+            fullData.forEach(item => {
+                if (item.status === 'บันทึกแล้ว') {
+                    // Reconstruct key
+                    const uniqueKey = (item.scrap['work order'] || '') + (item.scrap['Spare Part Code'] || '');
+                    savedKeys.add(uniqueKey);
+                }
+            });
+
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+
+            // 1. Gather Items
+            const selectedItems = [];
+            for (const cb of checkboxes) {
+                const globalIndex = parseInt(cb.value);
+                const item = displayedData[globalIndex];
+
+                if (item) {
+                    // Check if already saved
+                    if (item.status === 'บันทึกแล้ว') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'บางรายการถูกบันทึกแล้ว',
+                            text: `รายการ ${item.scrap['work order']} ถูกบันทึกไปแล้ว ไม่สามารถแก้ไขได้`,
+                        });
+                        return; // Abort whole batch? Or continue? User usually wants safe abort.
+                    }
+
+                    // Validate Serial Number for EACH item? 
+                    // User said: "Same condition as Save button".
+                    // The Save button checks: !serialInput || serialInput.length < 8
+                    // Here we look at item.fullRow['Serial Number']
+                    const serial = item.fullRow['Serial Number'] || '';
+
+                    if (actionName === 'เคลมประกัน' && (!serial || serial.length < 8)) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'ข้อมูลไม่ถูกต้อง',
+                            text: `รายการ ${item.scrap['work order']}: Serial Number ไม่ถูกต้อง (ต้องมีอย่างน้อย 8 หลัก)`,
+                        });
+                        return;
+                    }
+
+                    selectedItems.push(item);
+                }
+            }
+
+            // 2. Confirm
+            const result = await Swal.fire({
+                title: 'ยืนยันการบันทึก?',
+                text: `คุณต้องการบันทึก ${selectedItems.length} รายการ ด้วยสถานะ "${actionName}" ใช่หรือไม่?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (!result.isConfirmed) return;
+
+            // 3. Process Batch (One by One)
+            let successCount = 0;
+            let failCount = 0;
+
+            Swal.fire({
+                title: 'กำลังบันทึก...',
+                html: `กำลังประมวลผล 0 / ${selectedItems.length}`,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            for (let i = 0; i < selectedItems.length; i++) {
+                const item = selectedItems[i];
+                Swal.getHtmlContainer().textContent = `กำลังประมวลผล ${i + 1} / ${selectedItems.length}`;
+
+                // Get Current User
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+                const payload = {
+                    ...item.scrap,
+                    ...item.fullRow,
+                    'user': currentUser.IDRec || 'Unknown',
+                    'ActionStatus': actionName,
+                    'Qty': item.scrap['qty'] || '',
+                    'Serial Number': item.fullRow['Serial Number'] || ''
+                };
+                delete payload['Values'];
+
+                try {
+                    await fetch(GAS_API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    successCount++;
+                    // Optimistic Update
+                    item.status = 'บันทึกแล้ว';
+                    item.fullRow['ActionStatus'] = actionName;
+                } catch (e) {
+                    console.error(e);
+                    failCount++;
+                }
+            }
+
+            // 4. Finish
+            renderTable();
+            toggleAllCheckboxes({ checked: false }); // Deselect all
+
+            Swal.fire({
+                icon: successCount > 0 ? 'success' : 'error',
+                title: 'เสร็จสิ้น',
+                text: `บันทึกสำเร็จ: ${successCount} รายการ\nล้มเหลว: ${failCount} รายการ`,
+            });
+        }
+
+        function renderBookingTable() {
+            const tableHeader = document.getElementById('bookingTableHeader');
+            const tableBody = document.getElementById('bookingTableBody');
+
+            if (!globalBookingData || globalBookingData.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center; padding: 2rem;">No data found in Warranty Sheet.</td></tr>';
+                return;
+            }
+
+            // Headers
+            tableHeader.innerHTML = '';
+            BOOKING_COLUMNS.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col.header;
+                tableHeader.appendChild(th);
+            });
+
+            // Rows
+            tableBody.innerHTML = '';
+            // Display newest first (reverse order) if preferred, or as is. 
+            // Usually Sheets appends to bottom, so reverse is better for "Latest".
+            const sortedData = [...globalBookingData].reverse();
+
+            sortedData.forEach(row => {
+                const tr = document.createElement('tr');
+                BOOKING_COLUMNS.forEach(col => {
+                    const td = document.createElement('td');
+                    let value = row[col.key] || '';
+
+                    // Format Timestamp
+                    if (col.key === 'Timestamp' && value) {
+                        try {
+                            const date = new Date(value);
+                            if (!isNaN(date)) {
+                                value = date.toLocaleString('th-TH');
+                            }
+                        } catch (e) { }
+                    }
+
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+        }
+
+        initAuth();
+
+        document.getElementById('passInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+
+    </script>
+</body>
+
+</html>
