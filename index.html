@@ -983,10 +983,14 @@
                 if (userPlant) {
                     globalBookingData = warrantyData.filter(row => {
                         const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
-                        return rowPlant === userPlant;
+                        const action = row['ActionStatus'] || row['Warranty Action'] || '';
+                        return rowPlant === userPlant && action === 'เคลมประกัน';
                     });
                 } else {
-                    globalBookingData = warrantyData;
+                    globalBookingData = warrantyData.filter(row => {
+                        const action = row['ActionStatus'] || row['Warranty Action'] || '';
+                        return action === 'เคลมประกัน';
+                    });
                 }
 
                 // Render Booking Table immediately
