@@ -992,7 +992,14 @@
                 // Render Booking Table immediately
                 renderBookingTable();
 
-                const savedKeys = new Set(warrantyData.map(row => row['KEY'] ? row['KEY'].toString().trim() : ''));
+                // Create Map of keys -> Status (Warranty Action)
+                const savedStatusMap = new Map();
+                warrantyData.forEach(row => {
+                    const key = row['KEY'] ? row['KEY'].toString().trim() : '';
+                    if (key) {
+                        savedStatusMap.set(key, row['ActionStatus'] || row['Warranty Action'] || 'บันทึกแล้ว');
+                    }
+                });
 
                 // Join Data & Normalize Data Plant
                 fullData = scrapData.map(scrapRow => {
@@ -1005,12 +1012,12 @@
 
                     // Generate KEY for status check (Work Order + Spare Part Code)
                     const uniqueKey = (scrapRow['work order'] || '') + (scrapRow['Spare Part Code'] || '');
-                    const isSaved = savedKeys.has(uniqueKey);
+                    const statusValue = savedStatusMap.get(uniqueKey) || '';
 
                     return {
                         scrap: scrapRow,
                         fullRow: workFilterMap.get(workOrderKey) || {},
-                        status: isSaved ? 'บันทึกแล้ว' : ''
+                        status: statusValue
                     };
                 });
 
@@ -1143,12 +1150,29 @@
                     }
 
                     // Apply Green Tab Style for specific columns if Saved
+                    // Apply Green Tab Style for specific columns if Saved (Status is not empty)
                     const greenColumns = ['status', 'work order', 'Spare Part Code', 'Spare Part Name', 'old material code', 'qty', 'Serial Number', 'Store Code', 'Store Name'];
-                    if (item.status === 'บันทึกแล้ว' && greenColumns.includes(col.key)) {
+                    if (item.status && greenColumns.includes(col.key)) {
                         const span = document.createElement('span');
                         span.textContent = value;
-                        span.style.backgroundColor = '#dcfce7'; // Green-100
-                        span.style.color = '#166534'; // Green-700
+
+                        // Default Green (Claim Warranty / บันทึกแล้ว)
+                        let bgColor = '#dcfce7'; // Green-100
+                        let textColor = '#166534'; // Green-700
+
+                        if (item.status === 'Sworp') {
+                            bgColor = '#e0e7ff'; // Indigo-100
+                            textColor = '#3730a3'; // Indigo-800
+                        } else if (item.status === 'หมดประกัน') {
+                            bgColor = '#ffedd5'; // Orange-100
+                            textColor = '#9a3412'; // Orange-800
+                        } else if (item.status === 'ชำรุด') {
+                            bgColor = '#fce7f3'; // Pink-100
+                            textColor = '#9d174d'; // Pink-800
+                        }
+
+                        span.style.backgroundColor = bgColor;
+                        span.style.color = textColor;
                         span.style.fontSize = '0.75rem'; // Small size
                         span.style.fontWeight = '600';
                         span.style.padding = '0.25rem 0.5rem';
