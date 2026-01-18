@@ -359,7 +359,11 @@
             padding: 2rem;
             border-radius: 12px;
             width: 100%;
-            max-width: 400px;
+            max-width: 380px;
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
@@ -525,6 +529,26 @@
         .btn-damaged:hover {
             background-color: #db2777;
             transform: translateY(-1px);
+
+        }
+
+        .btn-claim {
+            background-color: #22c55e;
+            /* Green 500 */
+            color: white;
+            border: none;
+            padding: 0.35rem 0.85rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .btn-claim:hover {
+            background-color: #16a34a;
+            transform: translateY(-1px);
         }
 
         /* Tabs */
@@ -609,7 +633,7 @@
 
     <!-- Store Detail Modal -->
     <div id="storeModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content" style="max-width: 450px;">
             <div class="modal-header">
                 Warranty Claim Processing <br>
                 <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">Manage details for
@@ -673,6 +697,19 @@
                     <button type="button" class="status-btn" onclick="selectAction(this, 'ชำรุด')">ชำรุด</button>
                 </div>
                 <input type="hidden" id="store_actionStatus">
+                <input type="hidden" id="store_actionStatus">
+            </div>
+
+            <!-- Section 4: Receiver (Only for L&E) -->
+            <div class="modal-section" id="receiverSection" style="display: none;">
+                <div class="modal-section-title">Receiver (ผู้รับ)</div>
+                <div class="status-btn-group">
+                    <button type="button" class="status-btn receiver-btn"
+                        onclick="selectReceiver(this, 'Poom')">Poom</button>
+                    <button type="button" class="status-btn receiver-btn"
+                        onclick="selectReceiver(this, 'Mai')">Mai</button>
+                </div>
+                <input type="hidden" id="store_receiver">
             </div>
 
             <div class="modal-actions">
@@ -732,6 +769,20 @@
                         <div>จำนวน <span id="totalQtyValue" style="color: var(--primary-color); font-size: 1rem;">0
                                 PC</span></div>
 
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                            <label for="statusFilter"
+                                style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
+                            <select id="statusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;"
+                                onchange="handleFilterChange()">
+                                <option value="">All Status</option>
+                                <option value="Pending">Pending (รอคีย์)</option>
+                                <option value="เคลมประกัน">เคลมประกัน</option>
+                                <option value="Sworp">Sworp</option>
+                                <option value="หมดประกัน">หมดประกัน</option>
+                                <option value="ชำรุด">ชำรุด</option>
+                            </select>
+                        </div>
+
                         <!-- Bulk Actions -->
                         <div id="bulkActions" style="display: none; gap: 0.5rem; align-items: center;">
                             <span
@@ -740,6 +791,7 @@
                             <button onclick="processBulkAction('Sworp')" class="btn-sworp">Sworp</button>
                             <button onclick="processBulkAction('หมดประกัน')" class="btn-expired">หมดประกัน</button>
                             <button onclick="processBulkAction('ชำรุด')" class="btn-damaged">ชำรุด</button>
+                            <button onclick="processBulkAction('เคลมประกัน')" class="btn-claim">เคลมประกัน</button>
                         </div>
                     </div>
                 </div>
@@ -767,6 +819,25 @@
 
             <!-- Tab 2: Booking (Data Content) -->
             <div id="tab-content-booking" class="tab-content">
+                <div class="filter-bar">
+                    <label for="bookingPartFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
+                        Part:</label>
+                    <select id="bookingPartFilter" class="filter-select" onchange="renderBookingTable()">
+                        <option value="">All Spare Parts</option>
+                    </select>
+
+                    <!-- Booking Bulk Actions -->
+                    <div id="bookingBulkActions"
+                        style="display: none; gap: 0.5rem; align-items: center; margin-left: 1rem; border-left: 1px solid var(--border-color); padding-left: 1rem;">
+                        <span
+                            style="color: var(--text-secondary); font-size: 0.8em; font-weight: normal; margin-right: 0.25rem;">Action:</span>
+                        <button onclick="processBookingAction('ส่งคลังนวนคร')" class="btn-sworp"
+                            style="background-color: #8b5cf6;">ส่งคลังนวนคร</button>
+                        <button onclick="processBookingAction('ส่งคลังวิภาวดี')" class="btn-sworp"
+                            style="background-color: #0ea5e9;">ส่งคลังวิภาวดี</button>
+                    </div>
+                </div>
                 <div class="table-container">
                     <table id="bookingTable">
                         <thead>
@@ -784,6 +855,7 @@
         const WORKFILTER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C-_TRQcz2w0ia9bF9BfFcln5X_dX8T_cNfVUI-oU8ho/gviz/tq?tqx=out:csv&sheet=WorkFilter';
         const EMPLOYEE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1eqVoLsZxGguEbRCC5rdI4iMVtQ7CK4T3uXRdx8zE3uw/gviz/tq?tqx=out:csv&sheet=EmployeeWeb';
         const WARRANTY_SHEET_URL = 'https://docs.google.com/spreadsheets/d/19WWSESBcerEUlEDzM4lu3cglPoTHOWUl4P0prexqYpc/gviz/tq?tqx=out:csv&sheet=WarrantyData';
+        const TECHNICIAN_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1EcP7N1Yr6fAzl17ItoqPstaxrIIf1Aly/gviz/tq?tqx=out:csv&sheet=Data';
 
         // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx6cP4AV_0XB2aMDIk2NI1RpOuKiJI-HdOteqmbzusmN7B4S2CISomwVyMkTKBFPIM3lQ/exec';
@@ -800,6 +872,9 @@
             { header: 'Store Code', source: 'W', key: 'Store Code' },
             { header: 'Store Name', source: 'W', key: 'Store Name' },
             { header: 'Date Received', source: 'S', key: 'วันที่รับซาก' },
+            { header: 'รหัสช่าง', source: 'S', key: 'รหัสช่าง' },
+            { header: 'ชื่อช่าง', source: 'S', key: 'ชื่อช่าง' },
+            { header: 'Mobile', source: 'T', key: 'Phone' },
             { header: 'Receiver', source: 'S', key: 'ผู้รับซาก' },
             { header: 'Plant', source: 'S', key: 'plant' },
             { header: 'Keep', source: 'S', key: 'Keep' },
@@ -810,6 +885,7 @@
         ];
 
         const BOOKING_COLUMNS = [
+            { header: '<input type="checkbox" id="selectAllBooking" onclick="toggleAllBookingCheckboxes(this)">', key: 'checkbox' },
             { header: 'Work Order', key: 'Work Order' },
             { header: 'Spare Part Code', key: 'Spare Part Code' },
             { header: 'Spare Part Name', key: 'Spare Part Name' },
@@ -818,13 +894,16 @@
             { header: 'Serial Number', key: 'Serial Number' },
             { header: 'Store Code', key: 'Store Code' },
             { header: 'Store Name', key: 'Store Name' },
+            { header: 'รหัสช่าง', key: 'รหัสช่าง' },
+            { header: 'ชื่อช่าง', key: 'ชื่อช่าง' },
+            { header: 'Mobile', key: 'Mobile' },
             { header: 'Plant', key: 'Plant' }, // Added Plant
             { header: 'Product', key: 'Product' },
             { header: 'Warranty Action', key: 'Warranty Action' },
             { header: 'Recorder', key: 'Recorder' },
             { header: 'Timestamp', key: 'Timestamp' },
-            { header: 'Booking Slip', key: 'Booking Slip' },
-            { header: 'Booking Date', key: 'Booking Date' },
+            { header: 'ใบจองรถ', key: 'Booking Slip' },
+            { header: 'วันที่จองรถ', key: 'Booking Date' },
         ];
 
         let allEmployees = [];
@@ -960,10 +1039,11 @@
 
         async function loadTableData() {
             try {
-                const [scrapData, workFilterData, warrantyData] = await Promise.all([
+                const [scrapData, workFilterData, warrantyData, technicianData] = await Promise.all([
                     fetchData(SCRAP_SHEET_URL),
                     fetchData(WORKFILTER_SHEET_URL),
-                    fetchData(WARRANTY_SHEET_URL)
+                    fetchData(WARRANTY_SHEET_URL),
+                    fetchData(TECHNICIAN_SHEET_URL)
                 ]);
 
                 // Create Set of Saved Keys (KEY column in WarrantyData)
@@ -994,6 +1074,7 @@
                 }
 
                 // Render Booking Table immediately
+                populateBookingFilter();
                 renderBookingTable();
 
                 // Create Map of keys -> Status (Warranty Action)
@@ -1004,6 +1085,22 @@
                         savedStatusMap.set(key, row['ActionStatus'] || row['Warranty Action'] || 'บันทึกแล้ว');
                     }
                 });
+
+                // Create Map of Technician ID -> Phone
+                const technicianMap = new Map();
+                if (technicianData) {
+                    technicianData.forEach(row => {
+                        // Ensure ID is treated as a string and trimmed
+                        let id = row['IDEmployee'];
+                        if (id) {
+                            id = String(id).trim();
+                            // If duplicate, keep the first one (or robustly check if phone exists)
+                            if (!technicianMap.has(id)) {
+                                technicianMap.set(id, row['Phone'] || '');
+                            }
+                        }
+                    });
+                }
 
                 // Join Data & Normalize Data Plant
                 fullData = scrapData.map(scrapRow => {
@@ -1021,7 +1118,8 @@
                     return {
                         scrap: scrapRow,
                         fullRow: workFilterMap.get(workOrderKey) || {},
-                        status: statusValue
+                        status: statusValue,
+                        technicianPhone: technicianMap.get(String(scrapRow['รหัสช่าง'] || '').trim()) || '' // Safe Lookup
                     };
                 });
 
@@ -1095,11 +1193,20 @@
 
         function applyFilters() {
             const selectedPart = document.getElementById('sparePartFilter').value;
+            const selectedStatus = document.getElementById('statusFilter').value;
             const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
 
             displayedData = fullData.filter(item => {
                 // 1. Filter by Spare Part
                 const matchPart = selectedPart ? item.scrap['Spare Part Name'] === selectedPart : true;
+
+                // 2. Filter by Status
+                let matchStatus = true;
+                if (selectedStatus === 'Pending') {
+                    matchStatus = !item.status; // Empty status means pending
+                } else if (selectedStatus) {
+                    matchStatus = item.status === selectedStatus;
+                }
 
                 // 2. Filter by Search Term (All Columns)
                 let matchSearch = true;
@@ -1112,7 +1219,7 @@
                     matchSearch = allValues.includes(searchTerm);
                 }
 
-                return matchPart && matchSearch;
+                return matchPart && matchStatus && matchSearch;
             });
 
             updateTotalQty();
@@ -1141,13 +1248,18 @@
                 COLUMNS.forEach(col => {
                     const td = document.createElement('td');
                     let value = '';
+
                     if (col.source === 'S') value = item.scrap[col.key] || '';
-                    else if (col.source === 'C') value = item.status; // Computed status
+                    else if (col.source === 'C') value = item.status;
+                    else if (col.source === 'T') value = item.technicianPhone; // Tech Source
                     else value = item.fullRow[col.key] || '';
 
                     // Checkbox Column
                     if (col.key === 'checkbox') {
-                        td.innerHTML = `<input type="checkbox" class="row-checkbox" value="${startIndex + index}" onchange="handleCheckboxChange()">`;
+                        const isSaved = !!item.status;
+                        const isLE = item.fullRow['Product'] === 'L&E';
+                        const disabledAttr = (isSaved || isLE) ? 'disabled' : '';
+                        td.innerHTML = `<input type="checkbox" class="row-checkbox" value="${startIndex + index}" onchange="handleCheckboxChange()" ${disabledAttr}>`;
                         td.style.textAlign = 'center';
                         tr.appendChild(td);
                         return; // Skip other rendering for this col
@@ -1185,6 +1297,14 @@
                         td.appendChild(span);
                     } else {
                         td.textContent = value;
+                    }
+
+                    if (col.key === 'Serial Number') {
+                        td.style.cursor = 'pointer';
+                        td.style.color = 'var(--primary-color)';
+                        td.style.fontWeight = '500';
+                        td.title = 'Click to edit Serial Number';
+                        td.onclick = () => openEditModal(item);
                     }
 
 
@@ -1273,8 +1393,50 @@
             closeEditModal();
         }
 
+        function selectReceiver(btn, name) {
+            // Reset buttons
+            document.querySelectorAll('.receiver-btn').forEach(b => {
+                b.style.backgroundColor = '#f1f5f9';
+                b.style.color = '#64748b';
+                b.style.border = '1px solid #e2e8f0';
+            });
+
+            // Highlight selected
+            btn.style.backgroundColor = '#3b82f6';
+            btn.style.color = 'white';
+            btn.style.border = 'none';
+
+            document.getElementById('store_receiver').value = name;
+        }
+
         function openStoreModal(item) {
             editingItem = item;
+
+            // Show/Hide Receiver Section based on Product
+            const isLE = item.fullRow['Product'] === 'L&E';
+            // Reset Receiver Selection
+            document.getElementById('store_receiver').value = '';
+            document.querySelectorAll('.receiver-btn').forEach(b => {
+                b.style.backgroundColor = '#f1f5f9';
+                b.style.color = '#64748b';
+                b.style.border = '1px solid #e2e8f0';
+            });
+
+            if (isLE) {
+                receiverSection.style.display = 'block';
+                // Default to Poom for L&E
+                const defaultReceiver = 'Poom';
+                document.getElementById('store_receiver').value = defaultReceiver;
+                document.querySelectorAll('.receiver-btn').forEach(b => {
+                    if (b.textContent === defaultReceiver) {
+                        b.style.backgroundColor = '#3b82f6';
+                        b.style.color = 'white';
+                        b.style.border = 'none';
+                    }
+                });
+            } else {
+                receiverSection.style.display = 'none';
+            }
 
             // Populate fields
             // S Source
@@ -1297,7 +1459,7 @@
             const btnUpdate = document.getElementById('btnUpdateStore');
             const btnDelete = document.getElementById('btnDeleteStore');
 
-            if (item.status === 'บันทึกแล้ว') {
+            if (item.status) {
                 btnSave.style.display = 'none';
                 btnUpdate.style.display = 'inline-block';
                 btnDelete.style.display = 'inline-block';
@@ -1345,11 +1507,15 @@
 
             // Validation: Check if empty or less than 8 characters (ONLY IF Claim Warranty)
             if (actionStatus === 'เคลมประกัน') {
-                if (!serialInput || serialInput.length < 8) {
+                const isLE = editingItem.fullRow['Product'] === 'L&E';
+                // If L&E, must be > 5 digits (so length >= 6). Else must be >= 8.
+                const minLength = isLE ? 6 : 8;
+
+                if (!serialInput || serialInput.length < minLength) {
                     Swal.fire({
                         icon: 'warning',
                         title: 'ตรวจสอบข้อมูล',
-                        text: 'กรุณาตรวจสอบ Serial Number ให้ถูกต้องว่าเป็น Serial ของเครื่องจริงนะ',
+                        text: `กรุณาตรวจสอบ Serial Number ให้ถูกต้อง (L&E > 5 หลัก, อื่นๆ >= 8 หลัก)`,
                     });
                     return;
                 }
@@ -1404,7 +1570,11 @@
 
                 // Clear local status
                 editingItem.status = '';
-                editingItem.fullRow = {}; // Clear fetched data
+                // editingItem.fullRow = {}; // REMOVED: Do not clear fullRow as it contains WorkFilter data
+
+                if (editingItem.fullRow) {
+                    editingItem.fullRow['ActionStatus'] = '';
+                }
 
                 renderTable();
                 closeStoreModal();
@@ -1430,8 +1600,15 @@
                 ...item.fullRow,
                 'user': currentUser.IDRec || 'Unknown',
                 'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน',
-                'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', // Take from window as requested
-                'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '' // Take from window as requested
+                'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '',
+                'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '',
+                'Phone': item.technicianPhone || '', // Add Phone (Mobile)
+                'รหัสช่าง': item.scrap['รหัสช่าง'] || '',
+                'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '',
+                'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ?
+                    ((String(item.scrap['Spare Part Code']) === '30027106') ? 'Mai' :
+                        (item.fullRow['Product'] === 'L&E') ? (document.getElementById('store_receiver').value || '') : 'Mon')
+                    : ''
             };
 
             // Remove 'Values' key if present to avoid confusion
@@ -1471,7 +1648,7 @@
                     });
 
                     // Optimistic UI Update
-                    item.status = 'บันทึกแล้ว';
+                    item.status = payload['ActionStatus'];
                     // Also update the 'user' field in fullRow so it shows up if we look at it
                     item.fullRow['user'] = payload['user'];
 
@@ -1540,16 +1717,15 @@
                     }
 
                     // Validate Serial Number for EACH item? 
-                    // User said: "Same condition as Save button".
-                    // The Save button checks: !serialInput || serialInput.length < 8
-                    // Here we look at item.fullRow['Serial Number']
                     const serial = item.fullRow['Serial Number'] || '';
+                    const isLE = item.fullRow['Product'] === 'L&E';
+                    const minLength = isLE ? 6 : 8;
 
-                    if (actionName === 'เคลมประกัน' && (!serial || serial.length < 8)) {
+                    if (actionName === 'เคลมประกัน' && (!serial || serial.length < minLength)) {
                         Swal.fire({
                             icon: 'warning',
                             title: 'ข้อมูลไม่ถูกต้อง',
-                            text: `รายการ ${item.scrap['work order']}: Serial Number ไม่ถูกต้อง (ต้องมีอย่างน้อย 8 หลัก)`,
+                            text: `รายการ ${item.scrap['work order']}: Serial Number ไม่ถูกต้อง (L&E > 5 หลัก, อื่นๆ >= 8 หลัก)`,
                         });
                         return;
                     }
@@ -1594,7 +1770,14 @@
                     'user': currentUser.IDRec || 'Unknown',
                     'ActionStatus': actionName,
                     'Qty': item.scrap['qty'] || '',
-                    'Serial Number': item.fullRow['Serial Number'] || ''
+                    'Serial Number': item.fullRow['Serial Number'] || '',
+                    'Phone': item.technicianPhone || '', // Add Phone (Mobile)
+                    'รหัสช่าง': item.scrap['รหัสช่าง'] || '',
+                    'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '',
+                    'Claim Receiver': (actionName === 'เคลมประกัน') ?
+                        ((String(item.scrap['Spare Part Code']) === '30027106') ? 'Mai' :
+                            (item.fullRow['Product'] !== 'L&E') ? 'Mon' : '')
+                        : ''
                 };
                 delete payload['Values'];
 
@@ -1607,7 +1790,7 @@
                     });
                     successCount++;
                     // Optimistic Update
-                    item.status = 'บันทึกแล้ว';
+                    item.status = actionName;
                     item.fullRow['ActionStatus'] = actionName;
                 } catch (e) {
                     console.error(e);
@@ -1626,20 +1809,174 @@
             });
         }
 
+        function toggleAllBookingCheckboxes(source) {
+            const checkboxes = document.querySelectorAll('.booking-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = source.checked;
+            });
+            handleBookingCheckboxChange();
+        }
+
+        function handleBookingCheckboxChange() {
+            const checkboxes = document.querySelectorAll('.booking-checkbox:checked');
+            const actionDiv = document.getElementById('bookingBulkActions');
+            if (checkboxes.length > 0) {
+                actionDiv.style.display = 'flex';
+            } else {
+                actionDiv.style.display = 'none';
+            }
+        }
+
+        async function processBookingAction(destination) {
+            const checkboxes = document.querySelectorAll('.booking-checkbox:checked');
+            if (checkboxes.length === 0) return;
+
+            // 1. Re-derive filtered & sorted data to match indices
+            const filterValue = document.getElementById('bookingPartFilter').value;
+            let filteredData = globalBookingData;
+            if (filterValue) {
+                filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
+            }
+            const sortedData = [...filteredData].reverse();
+
+            // 2. Identify selected items
+            const selectedItems = [];
+            checkboxes.forEach(cb => {
+                const index = parseInt(cb.value);
+                if (sortedData[index]) selectedItems.push(sortedData[index]);
+            });
+
+            if (selectedItems.length === 0) return;
+
+            // 3. Prompt for Booking Slip
+            const { value: bookingSlip, isConfirmed } = await Swal.fire({
+                title: 'กรอกเลขใบจองรถ',
+                text: `คุณกำลังจะส่ง ${selectedItems.length} รายการ ไปยัง "${destination}"`,
+                input: 'text',
+                inputPlaceholder: 'เลขใบจองรถ',
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: (value) => {
+                    if (!value) {
+                        Swal.showValidationMessage('กรุณากรอกเลขใบจองรถ!');
+                    }
+                    return value;
+                }
+            });
+
+            if (!isConfirmed) return;
+
+            // 4. Process Updates
+            let successCount = 0;
+            let failCount = 0;
+            const bookingDate = new Date(); // Timestamp
+
+            Swal.fire({
+                title: 'กำลังบันทึก...',
+                html: `กำลังประมวลผล 0 / ${selectedItems.length}`,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            for (let i = 0; i < selectedItems.length; i++) {
+                const item = selectedItems[i];
+                Swal.getHtmlContainer().textContent = `กำลังประมวลผล ${i + 1} / ${selectedItems.length}`;
+
+                // Construct Payload
+                // Use existing item data + updates
+                const payload = {
+                    ...item,
+                    'Booking Slip': bookingSlip,
+                    'Booking Date': bookingDate.toLocaleString('en-GB').replace(',', ''), // Simple format or use native Date
+                    // GAS needs 'KEY' or Work Order + Part Code. 
+                    // 'item' from globalBookingData already has all columns.
+                };
+
+                // Cleanup: GAS might fail if unknown keys are abundant? 
+                // Code.gs ignores unknown keys.
+                // IMPORTANT: ActionStatus must be preserved or set. 
+                // item already has it.
+
+                try {
+                    await fetch(GAS_API_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // Optimistic Update
+                    item['Booking Slip'] = bookingSlip;
+                    item['Booking Date'] = payload['Booking Date'];
+                    successCount++;
+
+                } catch (e) {
+                    console.error(e);
+                    failCount++;
+                }
+            }
+
+            renderBookingTable();
+            toggleAllBookingCheckboxes({ checked: false });
+
+            Swal.fire({
+                icon: successCount > 0 ? 'success' : 'error',
+                title: 'เสร็จสิ้น',
+                text: `อัปเดต ${successCount} รายการเรียบร้อย (ล้มเหลว: ${failCount})`,
+            });
+        }
+
+        function populateBookingFilter() {
+            const filterSelect = document.getElementById('bookingPartFilter');
+            // Keep "All" option
+            filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+
+            if (!globalBookingData || globalBookingData.length === 0) return;
+
+            // Extract Unique Spare Part Names
+            const parts = new Set();
+            globalBookingData.forEach(row => {
+                const name = row['Spare Part Name'];
+                if (name) parts.add(name);
+            });
+
+            // API sort
+            const sortedParts = Array.from(parts).sort();
+
+            sortedParts.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part;
+                option.textContent = part;
+                filterSelect.appendChild(option);
+            });
+        }
+
         function renderBookingTable() {
             const tableHeader = document.getElementById('bookingTableHeader');
             const tableBody = document.getElementById('bookingTableBody');
+            const filterValue = document.getElementById('bookingPartFilter').value;
 
             if (!globalBookingData || globalBookingData.length === 0) {
                 tableBody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center; padding: 2rem;">No data found in Warranty Sheet.</td></tr>';
                 return;
             }
 
+            // FILTERING
+            let filteredData = globalBookingData;
+            if (filterValue) {
+                filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
+            }
+
             // Headers
             tableHeader.innerHTML = '';
             BOOKING_COLUMNS.forEach(col => {
                 const th = document.createElement('th');
-                th.textContent = col.header;
+                if (col.header.includes('<')) {
+                    th.innerHTML = col.header;
+                } else {
+                    th.textContent = col.header;
+                }
                 tableHeader.appendChild(th);
             });
 
@@ -1647,12 +1984,20 @@
             tableBody.innerHTML = '';
             // Display newest first (reverse order) if preferred, or as is. 
             // Usually Sheets appends to bottom, so reverse is better for "Latest".
-            const sortedData = [...globalBookingData].reverse();
+            const sortedData = [...filteredData].reverse();
 
-            sortedData.forEach(row => {
+            sortedData.forEach((row, index) => {
                 const tr = document.createElement('tr');
                 BOOKING_COLUMNS.forEach(col => {
                     const td = document.createElement('td');
+
+                    if (col.key === 'checkbox') {
+                        td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${index}" onchange="handleBookingCheckboxChange()">`;
+                        td.style.textAlign = 'center';
+                        tr.appendChild(td);
+                        return;
+                    }
+
                     let value = row[col.key] || '';
 
                     // Format Timestamp
@@ -1665,11 +2010,112 @@
                         } catch (e) { }
                     }
 
+                    // Booking Slip Click Action
+                    if (col.key === 'Booking Slip') {
+                        td.style.cursor = 'pointer';
+                        td.style.color = 'var(--primary-color)';
+                        td.style.fontWeight = '500';
+                        td.title = 'Click to Edit/Delete';
+                        td.onclick = () => openBookingSlipModal(row);
+                    }
+
                     td.textContent = value;
                     tr.appendChild(td);
                 });
                 tableBody.appendChild(tr);
             });
+        }
+
+        async function openBookingSlipModal(item) {
+            const currentSlip = item['Booking Slip'] || '';
+
+            // SweetAlert with 3 Buttons: Edit, Delete, Cancel
+            const result = await Swal.fire({
+                title: 'จัดการใบจองรถ',
+                html: `
+                    <p>Current Slip: <b>${currentSlip || '-'}</b></p>
+                    <p>เลือกการทำงาน:</p>
+                `,
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'แก้ไข (Edit)',
+                denyButtonText: 'ลบข้อมูล (Delete)',
+                cancelButtonText: 'ยกเลิก',
+                denyButtonColor: '#d33'
+            });
+
+            if (result.isConfirmed) {
+                // EDIT
+                const { value: newSlip } = await Swal.fire({
+                    title: 'แก้ไขเลขใบจองรถ',
+                    input: 'text',
+                    inputValue: currentSlip,
+                    showCancelButton: true,
+                    confirmButtonText: 'บันทึก',
+                    inputValidator: (value) => {
+                        if (!value) return 'กรุณากรอกข้อมูล!';
+                    }
+                });
+
+                if (newSlip) {
+                    updateBookingSlip(item, newSlip, new Date().toLocaleString()); // Update Slip + Date
+                }
+
+            } else if (result.isDenied) {
+                // DELETE
+                const confirmDelete = await Swal.fire({
+                    title: 'ยืนยันการลบ?',
+                    text: "ข้อมูลใบจองรถและวันที่จองจะถูกลบออก",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'ลบข้อมูล',
+                    confirmButtonColor: '#d33'
+                });
+
+                if (confirmDelete.isConfirmed) {
+                    updateBookingSlip(item, '', ''); // Clear Slip + Date
+                }
+            }
+        }
+
+        async function updateBookingSlip(item, newSlip, newDate) {
+            Swal.fire({
+                title: 'Updating...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const payload = {
+                ...item,
+                'Booking Slip': newSlip,
+                'Booking Date': newDate // Or empty if deleting
+            };
+
+            try {
+                await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Optimistic Update
+                item['Booking Slip'] = newSlip;
+                item['Booking Date'] = newDate;
+
+                renderBookingTable(); // Re-render DOM
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Updated',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Failed to update.', 'error');
+            }
         }
 
         initAuth();
