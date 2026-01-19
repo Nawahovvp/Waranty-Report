@@ -148,6 +148,31 @@
             </div>
         </div>
     </div>
+    <!-- Booking Detail Modal -->
+    <div id="bookingDetailModal" class="modal-overlay">
+        <div class="modal-content"
+            style="max-width: 95%; width: 1200px; display: flex; flex-direction: column; max-height: 90vh;">
+            <button class="close-modal-btn" onclick="closeBookingDetailModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="modal-header" id="bookingDetailHeader">
+                Booking Details
+            </div>
+            <div class="table-container" style="overflow-y: auto; flex: 1;">
+                <table id="bookingDetailTable">
+                    <thead>
+                        <tr id="bookingDetailTableHeader"></tr>
+                    </thead>
+                    <tbody id="bookingDetailTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     </div>
 
     <!-- Main Application -->
@@ -171,6 +196,9 @@
             <div class="tabs-header">
                 <div class="tab-btn active" onclick="switchTab('main')">บันทึกข้อมูล (Save Data)</div>
                 <div class="tab-btn" onclick="switchTab('booking')">บันทึกจองรถส่งคลังกลาง</div>
+                <div class="tab-btn" onclick="switchTab('navanakorn')">ใบจองรถนวนคร</div>
+                <div class="tab-btn" onclick="switchTab('vibhavadi')">ใบจองรถวิภาวดี</div>
+                <div class="tab-btn" onclick="switchTab('supplier')">อะไหล่รอส่งSupplier</div>
             </div>
 
             <!-- Tab 1: Main Data (Existing Content) -->
@@ -272,10 +300,185 @@
                         <tbody id="bookingTableBody"></tbody>
                     </table>
                 </div>
+                <div class="pagination" id="bookingPaginationControls">
+                    <!-- Buttons injected by JS -->
+                </div>
+            </div>
+
+            <!-- Tab 3: Nava Nakorn Deck View -->
+            <div id="tab-content-navanakorn" class="tab-content">
+                <div id="navanakornDeckWrapper" style="padding: 1rem; overflow-y: auto; height: 100%;">
+                    <div id="navaNakornDeck" class="deck-container">
+                        <!-- Cards injected here -->
+                    </div>
+                </div>
+                <!-- Detail View Wrapper (Hidden by default) -->
+                <div id="navanakornTableWrapper" style="display: none; height: 100%; flex-direction: column;">
+                    <div class="toolbar"
+                        style="padding: 0.5rem 1rem; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background-color: #f8fafc;">
+                        <!-- Back button hidden (Toggle logic used) -->
+                        <button class="btn" onclick="backToDeck('navanakorn')" style="gap: 0.5rem; display: none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Back to Deck
+                        </button>
+                        <h3 id="navanakornReviewHeader" style="margin-left: 1rem; font-size: 1rem; font-weight: 600;">
+                            Review Booking</h3>
+                    </div>
+                    <div class="table-container" style="flex: 1;">
+                        <table id="navanakornTable">
+                            <thead>
+                                <tr id="navanakornTableHeader"></tr>
+                            </thead>
+                            <tbody id="navanakornTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Vibhavadi Deck View -->
+            <div id="tab-content-vibhavadi" class="tab-content">
+                <div id="vibhavadiDeckWrapper" style="padding: 1rem; overflow-y: auto; height: 100%;">
+                    <div id="vibhavadiDeck" class="deck-container">
+                        <!-- Cards injected here -->
+                    </div>
+                </div>
+                <!-- Detail View Wrapper (Hidden by default) -->
+                <div id="vibhavadiTableWrapper" style="display: none; height: 100%; flex-direction: column;">
+                    <div class="toolbar"
+                        style="padding: 0.5rem 1rem; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background-color: #f8fafc;">
+                        <!-- Back button hidden (Toggle logic used) -->
+                        <button class="btn" onclick="backToDeck('vibhavadi')" style="gap: 0.5rem; display: none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Back to Deck
+                        </button>
+                        <h3 id="vibhavadiReviewHeader" style="margin-left: 1rem; font-size: 1rem; font-weight: 600;">
+                            Review Booking</h3>
+                    </div>
+                    <div class="table-container" style="flex: 1;">
+                        <table id="vibhavadiTable">
+                            <thead>
+                                <tr id="vibhavadiTableHeader"></tr>
+                            </thead>
+                            <tbody id="vibhavadiTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Supplier View -->
+            <div id="tab-content-supplier" class="tab-content">
+                <div class="table-container">
+                    <table id="supplierTable">
+                        <thead id="supplierTableHeader"></thead>
+                        <tbody id="supplierTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
-    <script src="warranty.js?v=2"></script>
+        <!-- Work Order Detail Modal (Redesigned) -->
+        <div id="workOrderModal" class="modal-overlay">
+            <div class="modal-content" style="max-width: 600px;">
+                <button class="close-modal-btn" onclick="closeWorkOrderModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="modal-header">
+                    Work Order Details <br>
+                    <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">
+                        Manage details for work order
+                    </span>
+                </div>
+
+                <!-- Section 1: Reference Information -->
+                <div class="modal-section">
+                    <div class="modal-section-title">Reference Information</div>
+                    <div class="input-group" style="margin-bottom: 1rem;">
+                        <label>Work Order</label>
+                        <input type="text" id="woDetail_WorkOrder" disabled
+                            style="background-color: #f8fafc; font-size: 0.875rem;">
+                    </div>
+                    <div class="grid-2" style="grid-template-columns: 1fr 3fr; gap: 1rem; display: grid;">
+                        <div class="input-group">
+                            <label>Store Code</label>
+                            <input type="text" id="woDetail_StoreCode" disabled style="background-color: #f8fafc;">
+                        </div>
+                        <div class="input-group">
+                            <label>Store Name</label>
+                            <input type="text" id="woDetail_StoreName" disabled style="background-color: #f8fafc;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Item Details -->
+                <div class="modal-section">
+                    <div class="modal-section-title">Item Details</div>
+                    <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="input-group">
+                            <label>Spare Part Code</label>
+                            <input type="text" id="woDetail_PartCode" disabled style="background-color: #f8fafc;">
+                        </div>
+                        <div class="input-group">
+                            <label style="color: var(--primary-color); font-weight: 600;">Qty (Editable)</label>
+                            <input type="text" id="woDetail_Qty"
+                                style="border-color: var(--primary-color); background-color: #f0f9ff;">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top: 1rem;">
+                        <label>Spare Part Name</label>
+                        <input type="text" id="woDetail_PartName" disabled
+                            style="background-color: #f8fafc; font-weight: 500;">
+                    </div>
+
+                    <!-- Editable Fields -->
+                    <div class="grid-2"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                        <div class="input-group">
+                            <label style="color: var(--primary-color); font-weight: 600;">Serial Number
+                                (Editable)</label>
+                            <input type="text" id="woDetail_SerialNumber"
+                                style="border-color: var(--primary-color); background-color: #f0f9ff;">
+                        </div>
+                        <div class="input-group">
+                            <label style="color: var(--primary-color); font-weight: 600;">Note (Editable)</label>
+                            <input type="text" id="woDetail_Note"
+                                style="border-color: var(--primary-color); background-color: #f0f9ff;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Status -->
+                <div class="modal-section">
+                    <div class="modal-section-title">Warranty Action & Status</div>
+                    <div class="status-btn-group">
+                        <button type="button" class="status-btn"
+                            onclick="selectWorkOrderAction(this, 'เคลมประกัน')">เคลมประกัน</button>
+                        <button type="button" class="status-btn"
+                            onclick="selectWorkOrderAction(this, 'หมดประกัน')">หมดประกัน</button>
+                        <button type="button" class="status-btn"
+                            onclick="selectWorkOrderAction(this, 'ชำรุด')">ชำรุด</button>
+                    </div>
+                    <input type="hidden" id="woDetail_ActionValue">
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn" onclick="closeWorkOrderModal()">Close</button>
+                    <button class="btn btn-primary" onclick="saveWorkOrderDetail()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="warranty.js?v=16"></script>
 </body>
 
 </html>

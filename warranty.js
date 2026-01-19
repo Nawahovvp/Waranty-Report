@@ -1,8 +1,9 @@
-const SCRAP_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C1MeLvv2PrOEQsqmXQplZt1xLuD5Z4KUGOrnGjYrh_A/gviz/tq?tqx=out:csv&sheet=Scrap';
+﻿const SCRAP_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C1MeLvv2PrOEQsqmXQplZt1xLuD5Z4KUGOrnGjYrh_A/gviz/tq?tqx=out:csv&sheet=Scrap';
 const WORKFILTER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C-_TRQcz2w0ia9bF9BfFcln5X_dX8T_cNfVUI-oU8ho/gviz/tq?tqx=out:csv&sheet=WorkFilter';
 const EMPLOYEE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1eqVoLsZxGguEbRCC5rdI4iMVtQ7CK4T3uXRdx8zE3uw/gviz/tq?tqx=out:csv&sheet=EmployeeWeb';
 const WARRANTY_SHEET_URL = 'https://docs.google.com/spreadsheets/d/19WWSESBcerEUlEDzM4lu3cglPoTHOWUl4P0prexqYpc/gviz/tq?tqx=out:csv&sheet=WarrantyData';
 const TECHNICIAN_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1EcP7N1Yr6fAzl17ItoqPstaxrIIf1Aly/gviz/tq?tqx=out:csv&sheet=Data';
+const PARTS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C-_TRQcz2w0ia9bF9BfFcln5X_dX8T_cNfVUI-oU8ho/gviz/tq?tqx=out:csv&sheet=Parts';
 
 // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwq_ocJV50pVeUhuYJ5NJ114PPLDzCXuelrkYP5Mz33krtkbFp7VP5pzQEuzXnrGlDyXA/exec';
@@ -14,6 +15,7 @@ const COLUMNS = [
     { header: 'Spare Part Code', source: 'S', key: 'Spare Part Code' },
     { header: 'Spare Part Name', source: 'S', key: 'Spare Part Name' },
     { header: 'Old Material Code', source: 'S', key: 'old material code' },
+    { header: 'Person', source: 'P', key: 'Person' }, // Added Person Column
     { header: 'Qty', source: 'S', key: 'qty' },
     { header: 'Serial Number', source: 'W', key: 'Serial Number' },
     { header: 'Store Code', source: 'W', key: 'Store Code' },
@@ -30,6 +32,36 @@ const COLUMNS = [
     { header: 'Product Type', source: 'W', key: 'Product Type' },
     { header: 'Product', source: 'W', key: 'Product' }
 ];
+
+const PLANT_MAPPING = {
+    '301': 'นวนคร',
+    '303': 'SA-สงขลา',
+    '304': 'พระราม 3',
+    '305': 'ราชบุรี',
+    '307': 'สุราษฎร์',
+    '309': 'นครราชสีมา',
+    '310': 'SA-อุดร 1',
+    '311': 'ศรีราชา',
+    '312': 'พิษณุโลก',
+    '313': 'ภูเก็ต',
+    '315': 'SA-อยุธยา',
+    '319': 'ขอนแก่น',
+    '318': 'คลังวัตถุดิบ',
+    '320': 'ลำปาง',
+    '322': 'SA-อุดร 2',
+    '323': 'SA-ลำลูกกา',
+    '324': 'SA-ปัตตานี',
+    '326': 'วิภาวดี 62',
+    '330': 'ประเวศ',
+    '362': 'SA-หนองแขม',
+    '363': 'SA-ปากเกร็ด',
+    '364': 'SA-บางบัวทอง',
+    '365': 'SA-สมุทรปราการ',
+    '366': 'เชียงใหม่',
+    '367': 'SA-ฉะเชิงเทรา',
+    '368': 'SA-ร้อยเอ็ด',
+    '369': 'ระยอง'
+};
 
 const BOOKING_COLUMNS = [
     { header: '<input type="checkbox" id="selectAllBooking" onclick="toggleAllBookingCheckboxes(this)">', key: 'checkbox' },
@@ -51,9 +83,16 @@ const BOOKING_COLUMNS = [
     { header: 'Product', key: 'Product' },
     { header: 'Warranty Action', key: 'Warranty Action' },
     { header: 'Recorder', key: 'Recorder' },
+    { header: 'Recripte', key: 'Recripte' },
+    { header: 'Recripte Date', key: 'RecripteDate' },
     { header: 'Timestamp', key: 'Timestamp' },
     { header: 'วันที่จองรถ', key: 'Booking Date' },
 ];
+
+
+
+let currentBookingPage = 1;
+const ITEMS_PER_PAGE_BOOKING = 20;
 
 let allEmployees = [];
 let fullData = []; // Master data (filtered by plant)
@@ -84,7 +123,7 @@ async function fetchData(url) {
 
 async function initAuth() {
     allEmployees = await fetchData(EMPLOYEE_SHEET_URL);
-    console.log("Employees Loaded:", allEmployees.length);
+    allEmployees = await fetchData(EMPLOYEE_SHEET_URL);
 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -175,27 +214,82 @@ function switchTab(tabId) {
     // Refactor: We need to highlight the correct nav button.
     // Let's assume order: 0 = main, 1 = booking
     const tabs = document.querySelectorAll('.tab-btn');
+    // Hide all contents first
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+
     if (tabId === 'main') {
         tabs[0].classList.add('active');
+        document.getElementById('tab-content-main').style.display = 'flex';
         document.getElementById('tab-content-main').classList.add('active');
-        document.getElementById('tab-content-booking').classList.remove('active');
-    } else {
+    } else if (tabId === 'booking') {
         tabs[1].classList.add('active');
-        document.getElementById('tab-content-main').classList.remove('active');
+        document.getElementById('tab-content-booking').style.display = 'flex';
         document.getElementById('tab-content-booking').classList.add('active');
+        populateBookingFilter();
+        renderBookingTable();
+    } else if (tabId === 'navanakorn') {
+        tabs[2].classList.add('active');
+        document.getElementById('tab-content-navanakorn').style.display = 'block';
+        document.getElementById('tab-content-navanakorn').classList.add('active');
+        document.getElementById('tab-content-navanakorn').classList.add('active');
+        backToDeck('navanakorn'); // Reset View
+        renderDeckView('0301', 'navaNakornDeck', 'navanakorn'); // Pass tab key
+    } else if (tabId === 'vibhavadi') {
+        tabs[3].classList.add('active');
+        document.getElementById('tab-content-vibhavadi').style.display = 'block';
+        document.getElementById('tab-content-vibhavadi').classList.add('active');
+        backToDeck('vibhavadi'); // Reset View
+        renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi'); // Pass tab key
+    } else if (tabId === 'supplier') {
+        tabs[4].classList.add('active');
+        document.getElementById('tab-content-supplier').style.display = 'block';
+        document.getElementById('tab-content-supplier').classList.add('active');
+        renderSupplierTable(); // New Function
     }
 }
 
 async function loadTableData() {
     try {
-        const [scrapData, workFilterData, warrantyData, technicianData] = await Promise.all([
+        const [scrapData, workFilterData, warrantyData, technicianData, partsData] = await Promise.all([
             fetchData(SCRAP_SHEET_URL),
             fetchData(WORKFILTER_SHEET_URL),
             fetchData(WARRANTY_SHEET_URL),
-            fetchData(TECHNICIAN_SHEET_URL)
+            fetchData(TECHNICIAN_SHEET_URL),
+            fetchData(PARTS_SHEET_URL)
         ]);
 
-        // Create Set of Saved Keys (KEY column in WarrantyData)
+        // Create Parts Map (Spare Part Code -> Person) AND (Spare Part Code -> Name)
+        const partsMap = new Map();
+        const partsNameMap = new Map();
+
+        if (partsData && partsData.length > 0) {
+            const headers = Object.keys(partsData[0]);
+            // Find valid keys dynamically (Case Insensitive, Trimmed)
+            const codeKey = headers.find(h => h.toLowerCase().includes('spare') && h.toLowerCase().includes('code')) || 'Spare Part Code';
+            const personKey = headers.find(h => h.toLowerCase().includes('person')) || 'Person';
+            const nameKey = headers.find(h => h.toLowerCase().includes('spare') && h.toLowerCase().includes('name')) || 'Spare Part Name';
+
+            partsData.forEach(row => {
+                const rawCode = row[codeKey];
+                const rawPerson = row[personKey];
+                const rawName = row[nameKey];
+
+                const code = rawCode ? String(rawCode).trim() : '';
+                const person = rawPerson ? String(rawPerson).trim() : '';
+                const name = rawName ? String(rawName).trim() : '';
+
+                if (code) {
+                    partsMap.set(code, person);
+                    if (name) partsNameMap.set(code, name);
+
+                    // DEBUG: Check specific failing code
+                    if (code.includes('30053786')) { // Fuzzy check for debug
+                    }
+                }
+            });
+        }
+
         // Create Set of Saved Keys (KEY column in WarrantyData)
         const workFilterMap = new Map();
         workFilterData.forEach(row => {
@@ -264,11 +358,21 @@ async function loadTableData() {
             const uniqueKey = (scrapRow['work order'] || '') + (scrapRow['Spare Part Code'] || '');
             const statusValue = savedStatusMap.get(uniqueKey) || '';
 
+            // Get Person and Name from Parts Map
+            const partCode = scrapRow['Spare Part Code']?.trim();
+            const personValue = partsMap.get(partCode) || '';
+
+            // Override Spare Part Name if found in Parts DB
+            if (partCode && partsNameMap.has(partCode)) {
+                scrapRow['Spare Part Name'] = partsNameMap.get(partCode);
+            }
+
             return {
                 scrap: scrapRow,
                 fullRow: workFilterMap.get(workOrderKey) || {},
                 status: statusValue,
-                technicianPhone: technicianMap.get(String(scrapRow['รหัสช่าง'] || '').trim()) || '' // Safe Lookup
+                technicianPhone: technicianMap.get(String(scrapRow['รหัสช่าง'] || '').trim()) || '', // Safe Lookup
+                person: personValue // Added Person
             };
         });
 
@@ -278,8 +382,19 @@ async function loadTableData() {
         }
 
         // Initialize Displayed Data
+        // Map person to globalBookingData for fallback logic
+        globalBookingData = globalBookingData.map(item => {
+            const partCode = item['Spare Part Code']?.trim();
+            const personValue = partCode ? (partsMap.get(partCode) || '') : '';
+            return {
+                ...item,
+                person: personValue
+            };
+        });
+
         displayedData = [...fullData];
         populateFilters();
+        sortDisplayedData(); // Ensure sorted initially
         updateTotalQty();
 
         const tableHeader = document.getElementById('tableHeader');
@@ -340,6 +455,19 @@ function handleSearch() {
     applyFilters();
 }
 
+function sortDisplayedData() {
+    displayedData.sort((a, b) => {
+        const nameA = a.scrap['Spare Part Name'] || '';
+        const nameB = b.scrap['Spare Part Name'] || '';
+        const nameCompare = nameA.localeCompare(nameB, 'th');
+        if (nameCompare !== 0) return nameCompare;
+
+        const codeA = a.scrap['Spare Part Code'] || '';
+        const codeB = b.scrap['Spare Part Code'] || '';
+        return codeA.localeCompare(codeB);
+    });
+}
+
 function applyFilters() {
     const selectedPart = document.getElementById('sparePartFilter').value;
     const selectedStatus = document.getElementById('statusFilter').value;
@@ -371,6 +499,7 @@ function applyFilters() {
         return matchPart && matchStatus && matchSearch;
     });
 
+    sortDisplayedData();
     updateTotalQty();
     renderTable();
 }
@@ -391,7 +520,56 @@ function renderTable() {
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageData = displayedData.slice(startIndex, endIndex);
 
+    // Calculate Group Totals (for all displayed data to show correct summary)
+    // Group by Code now
+    const groupTotals = displayedData.reduce((acc, item) => {
+        const code = item.scrap['Spare Part Code'] || 'Unknown';
+        const qty = parseFloat(item.scrap['qty']) || 0;
+        acc[code] = (acc[code] || 0) + qty;
+        return acc;
+    }, {});
+
+    let previousPartCode = null;
+    // If we're on page > 1, check the last item of previous page to see if we are continuing a group
+    if (currentPage > 1 && displayedData[startIndex - 1]) {
+        previousPartCode = displayedData[startIndex - 1].scrap['Spare Part Code'];
+    }
+
     pageData.forEach((item, index) => {
+        const currentPartName = item.scrap['Spare Part Name'] || 'Unknown';
+        const currentPartCode = item.scrap['Spare Part Code'] || 'Unknown';
+
+        // Insert Group Header if Code Changed
+        if (currentPartCode !== previousPartCode) {
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'group-header-row';
+            headerRow.style.backgroundColor = '#f8fafc';
+            headerRow.style.fontWeight = 'bold';
+
+            const headerCell = document.createElement('td');
+            headerCell.colSpan = COLUMNS.length;
+            headerCell.style.padding = '12px';
+            headerCell.style.borderTop = '2px solid #e2e8f0';
+            headerCell.style.color = '#334155';
+
+            const total = groupTotals[currentPartCode] || 0;
+            headerCell.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <span>📦 ${currentPartName}</span>
+                        <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
+                    </div>
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 99px; font-size: 0.85em;">
+                        Total Qty: ${total.toLocaleString()}
+                    </span>
+                </div>
+            `;
+
+            headerRow.appendChild(headerCell);
+            tableBody.appendChild(headerRow);
+            previousPartCode = currentPartCode;
+        }
+
         const tr = document.createElement('tr');
 
         COLUMNS.forEach(col => {
@@ -401,6 +579,7 @@ function renderTable() {
             if (col.source === 'S') value = item.scrap[col.key] || '';
             else if (col.source === 'C') value = item.status;
             else if (col.source === 'T') value = item.technicianPhone; // Tech Source
+            else if (col.source === 'P') value = item.person; // Person Source
             else value = item.fullRow[col.key] || '';
 
             // Checkbox Column
@@ -573,10 +752,19 @@ function openStoreModal(item) {
 
     if (isLE) {
         receiverSection.style.display = 'block';
-        // Default to Poom for L&E
-        const defaultReceiver = 'Poom';
+
+        // Priority: Saved Receiver > Person Column > Default 'Poom'
+        const savedReceiver = item.fullRow['Claim Receiver'] || item['Claim Receiver'];
+        const personReceiver = item.person;
+        const defaultReceiver = savedReceiver || personReceiver || 'Poom';
+
         document.getElementById('store_receiver').value = defaultReceiver;
         document.querySelectorAll('.receiver-btn').forEach(b => {
+            // Reset
+            b.style.backgroundColor = '#f1f5f9';
+            b.style.color = '#64748b';
+            b.style.border = '1px solid #e2e8f0';
+
             if (b.textContent === defaultReceiver) {
                 b.style.backgroundColor = '#3b82f6';
                 b.style.color = 'white';
@@ -584,7 +772,23 @@ function openStoreModal(item) {
             }
         });
     } else {
+        // Non-L&E: Use Person if available
+        receiverSection.style.display = 'block'; // Always show for clarity? Or keep hidden?
+        // User asked "Warranty Claim Processing window... if no selection... take Person".
+        // This implies the window is OPEN. So we should probably show it?
+        // But original code hid it for non-L&E. 
+        // Let's safe-play: If hidden, user can't select. 
+        // But the REQUEST implies we can Save WITHOUT selection.
+        // So we must ensure 'store_receiver' is populated even if hidden.
+
+        // Let's keep original hiding logic BUT populate the hidden value.
+        // Or maybe show it now? User didn't ask to show it.
+        // Let's stick to: Populate the value.
         receiverSection.style.display = 'none';
+
+        // Use Person as default for non-L&E too
+        const defaultReceiver = item.person || '';
+        document.getElementById('store_receiver').value = defaultReceiver;
     }
 
     // Populate fields
@@ -755,9 +959,7 @@ function sendDatatoGAS(item) {
         'รหัสช่าง': item.scrap['รหัสช่าง'] || '',
         'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '',
         'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ?
-            ((String(item.scrap['Spare Part Code']) === '30027106') ? 'Mai' :
-                (item.fullRow['Product'] === 'L&E') ? (document.getElementById('store_receiver').value || '') : 'Mon')
-            : ''
+            (document.getElementById('store_receiver').value || item.person || '') : ''
     };
 
     // Remove 'Values' key if present to avoid confusion
@@ -969,10 +1171,7 @@ async function processBulkAction(actionName) {
             'Phone': item.technicianPhone || '', // Add Phone (Mobile)
             'รหัสช่าง': item.scrap['รหัสช่าง'] || '',
             'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '',
-            'Claim Receiver': (actionName === 'เคลมประกัน') ?
-                ((String(item.scrap['Spare Part Code']) === '30027106') ? 'Mai' :
-                    (item.fullRow['Product'] !== 'L&E') ? 'Mon' : '')
-                : ''
+            'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : ''
         };
         delete payload['Values'];
 
@@ -1102,6 +1301,24 @@ async function processBookingAction(destination) {
 
     if (selectedItems.length === 0) return;
 
+    // --- VALIDATION: Block Poom -> Nava Nakorn ---
+    if (destination.includes('นวนคร')) {
+        const hasPoom = selectedItems.some(item => {
+            const receiver = (item['Claim Receiver'] || item.person || '').toLowerCase();
+            return receiver.includes('poom');
+        });
+
+        if (hasPoom) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'ไม่อนุญาต',
+                text: 'รายการที่มี Receiver เป็น "Poom" ไม่สามารถส่งไป "นวนคร" ได้',
+                confirmButtonText: 'ตกลง'
+            });
+            return;
+        }
+    }
+
     // 3. Prompt for Booking Slip
     let plantCenterCode = '';
     if (destination.includes('นวนคร')) plantCenterCode = '0301';
@@ -1163,7 +1380,6 @@ async function processBookingAction(destination) {
 
         // DEBUG: Alert for the first item to verify payload
         if (i === 0) {
-            console.log("PAYLOAD DEBUG:", JSON.stringify(payload, null, 2));
         }
 
         // Cleanup: GAS might fail if unknown keys are abundant? 
@@ -1242,6 +1458,9 @@ function renderBookingTable() {
         filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
     }
 
+    // Sort Data (Newest First)
+    const sortedData = [...filteredData].reverse();
+
     // Headers
     tableHeader.innerHTML = '';
     BOOKING_COLUMNS.forEach(col => {
@@ -1254,19 +1473,23 @@ function renderBookingTable() {
         tableHeader.appendChild(th);
     });
 
+    // Pagination Logic
+    const startIndex = (currentBookingPage - 1) * ITEMS_PER_PAGE_BOOKING;
+    const endIndex = startIndex + ITEMS_PER_PAGE_BOOKING;
+    const pageData = sortedData.slice(startIndex, endIndex);
+
     // Rows
     tableBody.innerHTML = '';
-    // Display newest first (reverse order) if preferred, or as is. 
-    // Usually Sheets appends to bottom, so reverse is better for "Latest".
-    const sortedData = [...filteredData].reverse();
 
-    sortedData.forEach((row, index) => {
+    pageData.forEach((row, index) => {
         const tr = document.createElement('tr');
         BOOKING_COLUMNS.forEach(col => {
             const td = document.createElement('td');
 
             if (col.key === 'checkbox') {
-                td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${index}" onchange="handleBookingCheckboxChange()">`;
+                // Adjust index for value to match global index in sortedData
+                const globalIndex = startIndex + index;
+                td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${globalIndex}" onchange="handleBookingCheckboxChange()">`;
                 td.style.textAlign = 'center';
                 tr.appendChild(td);
                 return;
@@ -1351,8 +1574,51 @@ function renderBookingTable() {
         });
         tableBody.appendChild(tr);
     });
+
+    // Render Pagination Controls
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE_BOOKING);
+    if (currentBookingPage > totalPages) currentBookingPage = 1;
+    renderBookingPagination(totalPages);
 }
 
+function renderBookingPagination(totalPages) {
+    const container = document.getElementById('bookingPaginationControls');
+    container.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    const createButton = (text, onClick, disabled = false, isActive = false) => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.onclick = onClick;
+        btn.disabled = disabled;
+        if (isActive) btn.classList.add('active');
+        return btn;
+    };
+
+    // << First
+    container.appendChild(createButton('<<', () => changeBookingPage(1), currentBookingPage === 1));
+
+    // < Prev
+    container.appendChild(createButton('<', () => changeBookingPage(currentBookingPage - 1), currentBookingPage === 1));
+
+    // Current Page Number
+    container.appendChild(createButton(currentBookingPage, () => { }, false, true));
+
+    // > Next
+    container.appendChild(createButton('>', () => changeBookingPage(currentBookingPage + 1), currentBookingPage === totalPages));
+
+    // >> Last
+    container.appendChild(createButton('>>', () => changeBookingPage(totalPages), currentBookingPage === totalPages));
+}
+
+function changeBookingPage(newPage) {
+    currentBookingPage = newPage;
+    renderBookingTable();
+    // Scroll to top of table container
+    const tableContainer = document.querySelector('#tab-content-booking .table-container');
+    if (tableContainer) tableContainer.scrollTop = 0;
+}
 async function openBookingSlipModal(item) {
     const currentSlip = item['Booking Slip'] || '';
 
@@ -1360,9 +1626,9 @@ async function openBookingSlipModal(item) {
     const result = await Swal.fire({
         title: 'จัดการใบจองรถ',
         html: `
-            <p>Current Slip: <b>${currentSlip || '-'}</b></p>
-            <p>เลือกการทำงาน:</p>
-        `,
+    <p>Current Slip: <b>${currentSlip || '-'}</b></p>
+    <p>เลือกการทำงาน:</p>
+`,
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: 'แก้ไข (Edit)',
@@ -1422,7 +1688,7 @@ async function updateBookingSlip(item, newSlip, newDate, newPlantCenter = null) 
         ...item,
         'Booking Slip': newSlip,
         'Booking Date': newDate,
-        'Plantcenter': newPlantCenter !== null ? newPlantCenter : item['Plantcenter'] // Update if provided, else keep same
+        'Plantcenter': newPlantCenter !== null ? newPlantCenter : item['Plantcenter']
     };
 
     try {
@@ -1450,8 +1716,8 @@ async function updateBookingSlip(item, newSlip, newDate, newPlantCenter = null) 
         });
 
     } catch (error) {
-        console.error(error);
-        Swal.fire('Error', 'Failed to update.', 'error');
+        console.error('Error updating receiver:', error);
+        Swal.fire('Error', 'Failed to update', 'error');
     }
 }
 
@@ -1575,3 +1841,595 @@ document.getElementById('passInput').addEventListener('keypress', function (e) {
         handleLogin();
     }
 });
+
+function renderDeckView(targetPlantCode, containerId, tabKey) {
+    const deckContainer = document.getElementById(containerId);
+    deckContainer.innerHTML = '';
+
+    const uniqueMap = new Map();
+
+    const sortedData = [...globalBookingData].sort((a, b) => {
+        const parseDate = (dateStr) => {
+            if (!dateStr) return 0;
+            const [d, m, y] = dateStr.split('/');
+            return new Date(y, m - 1, d).getTime();
+        };
+        return parseDate(b['Booking Date']) - parseDate(a['Booking Date']);
+    });
+
+    sortedData.forEach(item => {
+        const slip = item['Booking Slip'];
+        const pcCode = String(item['Plantcenter'] || '').trim();
+
+        // Filter by Plant Code (Normalize: remove leading zeros)
+        const normalize = (s) => s.replace(/^0+/, '');
+        if (!slip) return;
+        // DEBUG: Check filtering
+        // if (targetPlantCode === '0326' && normalize(pcCode) === '326') console.log('Found Vibhavadi Item:', slip);
+
+        if (normalize(pcCode) !== normalize(targetPlantCode)) return;
+
+        const date = item['Booking Date'] || '-';
+        const plant = item['Plant'] || '-';
+        const receiver = item['Claim Receiver'] || '-';
+
+        // Key: Slip + Receiver (with fallback to Person)
+        const receiverVal = item['Claim Receiver'] || item.person || 'Unknown';
+        const key = slip + '|' + receiverVal;
+        const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
+        const recripteInc = hasRecripte ? 1 : 0;
+
+        if (!uniqueMap.has(key)) {
+            // Store the effective receiver in the item for display purposes if needed?
+            // Actually, better not mutate 'item' here unpredictably. 
+            // We can just use the logic when rendering.
+            uniqueMap.set(key, {
+                ...item,
+                _effectiveReceiver: receiverVal,
+                _count: 1,
+                _recripteCount: recripteInc
+            });
+        } else {
+            // Increment count
+            const existing = uniqueMap.get(key);
+            existing._count = (existing._count || 1) + 1;
+            existing._recripteCount = (existing._recripteCount || 0) + recripteInc;
+        }
+    });
+
+    if (uniqueMap.size === 0) {
+        deckContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary); grid-column: 1/-1;">No booking records found for this plant.</p>';
+        return;
+    }
+
+    uniqueMap.forEach((item, key) => {
+        const slip = item['Booking Slip'];
+        const date = item['Booking Date'];
+        const plantCode = item['Plant'] || '';
+        const plantName = PLANT_MAPPING[plantCode] || plantCode; // Resolve Name
+        // Use the effective receiver we stored, or re-derive
+        const receiver = item._effectiveReceiver || item['Claim Receiver'] || item.person || 'Unknown';
+        const plantCenter = item['Plantcenter'] || '-';
+        const count = item._count || 1;
+        const recCount = item._recripteCount || 0;
+
+        // Status Logic
+        let statusText = 'ระหว่างขนส่ง';
+        let statusBg = '#fef3c7'; // yellow-100
+        let statusColor = '#92400e'; // yellow-800
+
+        if (recCount === 0) {
+            statusText = 'ระหว่างขนส่ง';
+            statusBg = '#fef3c7';
+            statusColor = '#92400e';
+        } else if (recCount < count) {
+            statusText = 'ระหว่างตรวจรับ';
+            statusBg = '#e0f2fe'; // blue-100
+            statusColor = '#0369a1'; // blue-700
+        } else if (recCount === count) {
+            statusText = 'เสร็จสิ้น';
+            statusBg = '#dcfce7'; // green-100
+            statusColor = '#166534'; // green-800
+        }
+
+        const card = document.createElement('div');
+        card.className = 'deck-card';
+        card.style.cursor = 'pointer';
+        card.setAttribute('data-key', key);
+        // Pass 'this' to access the element
+        card.onclick = function () { toggleDetailView(this, tabKey, slip, receiver); };
+        card.innerHTML = `
+            <div class="card-header" style="display: block;">
+                <!-- Row 1: Slip and Date -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div class="card-title">📄 ${slip}</div>
+                    <div class="card-badge" style="background-color: #f3f4f6; color: #374151;">📅 ${date}</div>
+                </div>
+                <!-- Row 2: Status and Count -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="card-badge" style="background-color: ${statusBg}; color: ${statusColor}; font-weight:bold; font-size: 0.75rem;">${statusText}</span>
+                    <div class="card-badge" style="background-color: #dbeafe; color: #1e40af;">รับแล้ว ${recCount}/${count} item</div>
+                </div>
+            </div>
+            <!-- Date moved to header
+            <div class="card-detail-row">
+                <span class="card-label">Booking Date:</span>
+                <span class="card-value">${date}</span>
+            </div>
+            -->
+            <!-- Receiver Removed -->
+            <!-- 
+            <div class="card-detail-row">
+                <span class="card-label">Receiver:</span>
+                <span class="card-value">${receiver}</span>
+            </div>
+            -->
+            <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1rem; color: #1e293b;">
+                <div>${plantName}</div>
+                <div style="color: #475569;">${receiver}</div>
+            </div>
+        `;
+        deckContainer.appendChild(card);
+    });
+}
+
+function backToDeck(tabKey) {
+    // Legacy function, might not be needed if toggle logic works, but keep for safety reset
+    const deckContainer = document.getElementById(tabKey === 'navanakorn' ? 'navaNakornDeck' : 'vibhavadiDeck');
+    const cards = deckContainer.getElementsByClassName('deck-card');
+
+    // Show all cards
+    Array.from(cards).forEach(c => c.style.display = 'flex');
+
+    document.getElementById(tabKey + 'TableWrapper').style.display = 'none';
+}
+
+function toggleDetailView(cardElement, tabKey, slip, targetReceiver) {
+    const deckWrapper = document.getElementById(tabKey + 'DeckWrapper');
+    const tableWrapper = document.getElementById(tabKey + 'TableWrapper');
+    const deckContainer = cardElement.parentElement; // Need this to find siblings
+
+    // Check if currently active
+    const isActive = cardElement.classList.contains('active-card');
+
+    if (isActive) {
+        // COLLAPSE
+        const cards = deckContainer.getElementsByClassName('deck-card');
+        Array.from(cards).forEach(c => c.style.display = 'flex');
+
+        cardElement.classList.remove('active-card');
+        cardElement.style.border = '1px solid var(--border-color)';
+
+        deckWrapper.style.height = '100%';
+        deckWrapper.style.flex = '';
+
+        tableWrapper.style.display = 'none';
+
+        // Clear Context
+        currentDetailContext = null;
+    } else {
+        // EXPAND
+        const cards = deckContainer.getElementsByClassName('deck-card');
+        Array.from(cards).forEach(c => {
+            if (c !== cardElement) {
+                c.style.display = 'none';
+            }
+        });
+
+        cardElement.classList.add('active-card');
+
+        deckWrapper.style.height = 'auto';
+        deckWrapper.style.flex = '0 0 auto';
+
+        tableWrapper.style.display = 'flex';
+        tableWrapper.style.height = 'auto';
+        tableWrapper.style.flex = '1';
+
+        // Set Context and Render
+        currentDetailContext = { tabKey, slip, targetReceiver };
+        renderTopLevelDetailTable(tabKey, slip, targetReceiver);
+    }
+}
+// Global context for detail view
+let currentDetailContext = null;
+
+function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
+    const tableWrapper = document.getElementById(tabKey + 'TableWrapper');
+    const header = document.getElementById(tabKey + 'ReviewHeader');
+    const thead = document.getElementById(tabKey + 'TableHeader');
+    const tbody = document.getElementById(tabKey + 'TableBody');
+
+    // Filter Data
+    const detailData = globalBookingData.filter(item => {
+        const itemReceiver = item['Claim Receiver'] || item.person || 'Unknown';
+        return item['Booking Slip'] === slip && itemReceiver === targetReceiver;
+    });
+
+    // Update Header with Save Button
+    // Use unique class or relative finding. Let's just use class 'bulk-save-btn' and hide it.
+    // We will control it via traversing up from checkbox.
+    header.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <span>Booking Details: ${slip} (${targetReceiver})</span>
+            <button class="btn btn-primary bulk-save-btn" style="display: none;" onclick="saveBulkReviewItems(this)">
+                Save Selected
+            </button>
+        </div>
+    `;
+
+    // Render Table Header
+    thead.innerHTML = '';
+    // thead is actually the TR element (id=...TableHeader)
+    BOOKING_COLUMNS.forEach(col => {
+        const th = document.createElement('th');
+        if (col.key === 'checkbox') {
+            th.innerHTML = '<input type="checkbox" class="select-all-review" onclick="toggleAllReviewCheckboxes(this)">';
+        } else {
+            th.innerHTML = col.header;
+        }
+        thead.appendChild(th);
+    });
+
+    // Render Table Body
+    tbody.innerHTML = '';
+
+    if (detailData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center;">No data found.</td></tr>';
+        return;
+    }
+
+    detailData.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        BOOKING_COLUMNS.forEach(col => {
+            const td = document.createElement('td');
+            let value = item[col.key] || '';
+
+            if (col.key === 'checkbox') {
+                // VALUE should be index in detailData to identify it
+                // We add a data attribute to the checkbox to find the row or data later? 
+                // Or just keep using value as index. But we need to know WHICH detailData it refers to?
+                // Actually, renderTopLevelDetailTable sets 'currentDetailContext'.
+                // If we have multiple tables open (e.g. one in hidden tab), 'currentDetailContext' might be overwritten if not careful.
+                // But toggleDetailView sets/clears it. Switching tabs doesn't clear it.
+                // Ideally, we should store the context ON the DOM element (the table or wrapper).
+                // For now, let's assume one active context. But the ID conflict was the main issue.
+                td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${index}" onchange="handleReviewCheckboxChange(this)">`;
+                td.style.textAlign = 'center';
+            } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
+                // Make Work Order and Serial Number clickable
+                td.textContent = value;
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.textDecoration = 'underline';
+                td.onclick = function (e) {
+                    e.stopPropagation();
+                    openWorkOrderModal(item);
+                };
+            } else {
+                if (col.key === 'Timestamp' && value) {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                        value = date.toLocaleString();
+                    }
+                }
+                if (col.key === 'Booking Date' && value) {
+                    let s = String(value);
+                    if (s.indexOf('T') > -1) s = s.split('T')[0];
+                    if (s.indexOf(' ') > -1) s = s.split(' ')[0];
+                    value = s;
+                }
+                td.textContent = value;
+            }
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+function toggleAllReviewCheckboxes(source) {
+    // Find the table that contains this checkbox
+    const table = source.closest('table');
+    if (!table) return;
+    const checkboxes = table.querySelectorAll('.review-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+
+    // Trigger update on one of them to update button
+    if (checkboxes.length > 0) {
+        handleReviewCheckboxChange(checkboxes[0]);
+    }
+}
+
+function handleReviewCheckboxChange(source) {
+    // Traverse up to find the wrapper, then the header, then the button?
+    // Structure: Wrapper -> [Header(contains button), Table]
+    // source is in Table -> tbody -> tr -> td
+    const wrapper = source.closest('.detail-content-wrapper') || source.closest('[id$="TableWrapper"]');
+    if (!wrapper) return;
+
+    const table = wrapper.querySelector('table');
+    const checkboxes = table.querySelectorAll('.review-checkbox:checked');
+    const saveBtn = wrapper.querySelector('.bulk-save-btn'); // Find by class in this wrapper
+
+    if (saveBtn) {
+        saveBtn.style.display = checkboxes.length > 0 ? 'block' : 'none';
+        saveBtn.textContent = `Save Selected (${checkboxes.length})`;
+    }
+}
+
+async function saveBulkReviewItems(btnElement) {
+    if (!currentDetailContext) return;
+    // WARNING: currentDetailContext might be stale if user switched tabs and opened another detail WITHOUT closing the first correctly?
+    // toggleDetailView cleans up, so it should be fine. 
+    // But to be safe, we can re-derive context or trust 'currentDetailContext' belongs to the visible view.
+
+    const { slip, targetReceiver, tabKey } = currentDetailContext;
+
+    // Re-derive data to match indices
+    const detailData = globalBookingData.filter(item => {
+        const itemReceiver = item['Claim Receiver'] || item.person || 'Unknown';
+        return item['Booking Slip'] === slip && itemReceiver === targetReceiver;
+    });
+
+    // Find checkboxes in the same container as the button
+    const wrapper = btnElement.closest('.detail-content-wrapper') || btnElement.closest('[id$="TableWrapper"]');
+    if (!wrapper) return;
+
+    const checkboxes = wrapper.querySelectorAll('.review-checkbox:checked');
+    const selectedItems = [];
+    checkboxes.forEach(cb => {
+        const idx = parseInt(cb.value);
+        if (detailData[idx]) selectedItems.push(detailData[idx]);
+    });
+
+    if (selectedItems.length === 0) return;
+
+    // Get Current User
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const recripteName = currentUser.name || currentUser.IDRec || 'Unknown';
+    const recripteDate = new Date();
+    const recripteDateStr = recripteDate.toLocaleString('en-GB');
+
+    Swal.fire({
+        title: 'Saving...',
+        html: `Updating ${selectedItems.length} items...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+
+        // Payload
+        const payload = {
+            ...item,
+            'Recripte': recripteName,
+            'RecripteDate': recripteDateStr,
+            'user': recripteName // Optional implicit update
+        };
+
+        try {
+            await fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // Update Local
+            item['Recripte'] = recripteName;
+            item['RecripteDate'] = recripteDateStr;
+            successCount++;
+        } catch (e) {
+            console.error(e);
+            failCount++;
+        }
+    }
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Updated',
+        text: `Success: ${successCount}, Failed: ${failCount}`,
+        timer: 1500,
+        showConfirmButton: false
+    });
+
+    // Re-render table and DECK to update counts
+    renderTopLevelDetailTable(tabKey, slip, targetReceiver);
+
+    // Refresh Deck Card Badge
+    // We need to re-render the deck or update valid badges.
+    // Easiest is to re-render deck view for that plant.
+    if (tabKey === 'navanakorn') renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+    if (tabKey === 'vibhavadi') renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+}
+
+function openWorkOrderModal(item) {
+    editingItem = item;
+
+    document.getElementById('woDetail_WorkOrder').value = item['Work Order'] || '';
+    document.getElementById('woDetail_Qty').value = item['Qty'] || '';
+    document.getElementById('woDetail_PartCode').value = item['Spare Part Code'] || '';
+    document.getElementById('woDetail_PartName').value = item['Spare Part Name'] || '';
+    document.getElementById('woDetail_StoreCode').value = item['Store Code'] || '';
+    document.getElementById('woDetail_StoreName').value = item['Store Name'] || '';
+    document.getElementById('woDetail_SerialNumber').value = item['Serial Number'] || '';
+    const currentAction = item['Warranty Action'] || '';
+    document.getElementById('woDetail_ActionValue').value = currentAction;
+
+    // Set active button
+    const buttons = document.querySelectorAll('#workOrderModal .status-btn');
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        // Simple check: if button's onclick contains the action string
+        if (btn.getAttribute('onclick').includes(`'${currentAction}'`)) {
+            btn.classList.add('active');
+        }
+    });
+    document.getElementById('woDetail_Note').value = item['Note'] || ''; // Assuming 'Note' exists
+
+    document.getElementById('workOrderModal').style.display = 'flex';
+}
+
+function closeWorkOrderModal() {
+    document.getElementById('workOrderModal').style.display = 'none';
+    editingItem = null;
+}
+
+async function saveWorkOrderDetail() {
+    if (!editingItem) return;
+
+    const newSerial = document.getElementById('woDetail_SerialNumber').value;
+    const newNote = document.getElementById('woDetail_Note').value;
+    const newAction = document.getElementById('woDetail_ActionValue').value;
+    const newQty = document.getElementById('woDetail_Qty').value;
+
+    // Get Current User
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const recripteName = currentUser.name || currentUser.IDRec || 'Unknown';
+    const recripteDate = new Date();
+
+    // Prepare Payload
+    const payload = {
+        ...editingItem, // Include original data
+        'Serial Number': newSerial,
+        'Qty': newQty,
+        'Note': newNote,
+        'Warranty Action': newAction,
+        'Recripte': recripteName,
+        'RecripteDate': recripteDate.toLocaleString('en-GB'), // DD/MM/YYYY, HH:mm:ss
+        'user': recripteName,
+        'ActionStatus': newAction
+    };
+
+    // UI Feedback: Saving...
+    Swal.fire({
+        title: 'Saving...',
+        text: 'Updating Work Order details...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        await fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // Success: Update Local Data
+        editingItem['Serial Number'] = newSerial;
+        editingItem['Note'] = newNote;
+        editingItem['Warranty Action'] = newAction;
+        editingItem['Qty'] = newQty;
+        // Also update the new fields locally
+        editingItem['Recripte'] = recripteName;
+        editingItem['RecripteDate'] = payload['RecripteDate'];
+
+        // Refresh Table
+        if (currentDetailContext) {
+            renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
+        }
+
+        closeWorkOrderModal();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Saved!',
+            text: 'Work Order updated successfully.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+    } catch (error) {
+        console.error('Error saving Work Order:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to save changes to Google Sheet.',
+        });
+    }
+}
+
+function selectWorkOrderAction(element, action) {
+    const container = element.parentElement;
+    const buttons = container.querySelectorAll('.status-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    element.classList.add('active');
+    document.getElementById('woDetail_ActionValue').value = action;
+}
+
+function renderSupplierTable() {
+    const tableHeader = document.getElementById('supplierTableHeader');
+    const tableBody = document.getElementById('supplierTableBody');
+
+    // Filter Data: Items with 'Recripte'
+    const supplierData = globalBookingData.filter(item => {
+        return item['Recripte'] && item['Recripte'].trim() !== '';
+    });
+
+    // Render Header
+    tableHeader.innerHTML = '';
+    const trHead = document.createElement('tr');
+    BOOKING_COLUMNS.forEach(col => {
+        // Skip Checkbox for this view? Or keep consistent? 
+        // Keeping consistent is safer, but checkbox might not work if logic isn't wired.
+        // Let's keep it but maybe disable it visually or just leave it.
+        const th = document.createElement('th');
+        th.innerHTML = col.header;
+        trHead.appendChild(th);
+    });
+    tableHeader.appendChild(trHead);
+
+    // Render Body
+    tableBody.innerHTML = '';
+    if (supplierData.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center; padding: 2rem;">No items waiting for supplier found.</td></tr>';
+        return;
+    }
+
+    supplierData.forEach(item => {
+        const tr = document.createElement('tr');
+        BOOKING_COLUMNS.forEach(col => {
+            const td = document.createElement('td');
+            let value = item[col.key] || '';
+
+            if (col.key === 'checkbox') {
+                td.innerHTML = '<input type="checkbox" disabled>'; // Disable checkbox for now
+                td.style.textAlign = 'center';
+            } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
+                // Make Work Order and Serial Number clickable
+                td.textContent = value;
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.textDecoration = 'underline';
+                td.onclick = function (e) {
+                    e.stopPropagation();
+                    openWorkOrderModal(item);
+                };
+            } else {
+                // Format Dates
+                if ((col.key === 'Timestamp' || col.key === 'RecripteDate') && value) {
+                    // Try to parse if not already formatted string
+                    // Value might be "DD/MM/YYYY" or ISO
+                    // Just display raw strings usually fine if consistent, or simple parse
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime()) && value.includes && value.includes('T')) {
+                        value = date.toLocaleString();
+                    }
+                }
+                if (col.key === 'Booking Date' && value) {
+                    let s = String(value);
+                    if (s.indexOf('T') > -1) s = s.split('T')[0];
+                    value = s;
+                }
+                td.textContent = value;
+            }
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+}

@@ -606,3 +606,67 @@ tbody tr:hover {
 .tab-content.active {
     display: flex;
 }
+
+/* Deck View */
+.deck-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    padding-bottom: 2rem;
+}
+
+.deck-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.deck-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-title {
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--text-primary);
+}
+
+.card-badge {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.card-detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+}
+
+.card-label {
+    color: var(--text-secondary);
+}
+
+.card-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
