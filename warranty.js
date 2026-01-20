@@ -520,12 +520,18 @@ function renderTable() {
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageData = displayedData.slice(startIndex, endIndex);
 
-    // Calculate Group Totals (for all displayed data to show correct summary)
-    // Group by Code now
-    const groupTotals = displayedData.reduce((acc, item) => {
+    // Calculate Group Stats (Total & Completed)
+    const groupStats = displayedData.reduce((acc, item) => {
         const code = item.scrap['Spare Part Code'] || 'Unknown';
         const qty = parseFloat(item.scrap['qty']) || 0;
-        acc[code] = (acc[code] || 0) + qty;
+
+        if (!acc[code]) acc[code] = { total: 0, completed: 0 };
+
+        acc[code].total += qty;
+        // Count as completed if Status is not empty
+        if (item.status && String(item.status).trim() !== '') {
+            acc[code].completed += qty;
+        }
         return acc;
     }, {});
 
@@ -552,16 +558,15 @@ function renderTable() {
             headerCell.style.borderTop = '2px solid #e2e8f0';
             headerCell.style.color = '#334155';
 
-            const total = groupTotals[currentPartCode] || 0;
+            const stats = groupStats[currentPartCode] || { total: 0, completed: 0 };
+
             headerCell.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display:flex; align-items:center; gap:0.5rem;">
                         <span>📦 ${currentPartName}</span>
                         <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
+                        <span style="font-size:0.85em; color:#0369a1; font-weight:bold;">(${stats.completed.toLocaleString()}/${stats.total.toLocaleString()} Pc)</span>
                     </div>
-                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 99px; font-size: 0.85em;">
-                        Total Qty: ${total.toLocaleString()}
-                    </span>
                 </div>
             `;
 
@@ -1032,6 +1037,7 @@ function sendDatatoGAS(item) {
                     'ชื่อช่าง': payload['ชื่อช่าง'],
                     'Mobile': payload['Phone'], // Mapped Phone -> Mobile
                     'Plant': payload['plant'],
+                    'Claim Receiver': payload['Claim Receiver'],
                     'Product': payload['Product'],
                     'Warranty Action': payload['ActionStatus'],
                     'Recorder': payload['user'],
@@ -1235,6 +1241,7 @@ async function processBulkAction(actionName) {
                 'ชื่อช่าง': itemPayload['ชื่อช่าง'],
                 'Mobile': itemPayload['Phone'],
                 'Plant': itemPayload['plant'],
+                'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '',
                 'Product': itemPayload['Product'],
                 'Warranty Action': actionName,
                 'Recorder': currentUser.IDRec || 'Unknown',
@@ -1280,9 +1287,11 @@ function handleBookingCheckboxChange() {
     }
 }
 
-async function processBookingAction(destination) {
-    const checkboxes = document.querySelectorAll('.booking-checkbox:checked');
-    if (checkboxes.length === 0) return;
+async function processBookingAction(destination, targetPlantCode) {
+    const checkboxes = document.querySelectorAll('.booking-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.booking-checkbox:checked');
+
+    if (checkedCheckboxes.length === 0) return;
 
     // 1. Re-derive filtered & sorted data to match indices
     const filterValue = document.getElementById('bookingPartFilter').value;
@@ -1290,16 +1299,29 @@ async function processBookingAction(destination) {
     if (filterValue) {
         filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
     }
-    const sortedData = [...filteredData].reverse();
-
-    // 2. Identify selected items
-    const selectedItems = [];
-    checkboxes.forEach(cb => {
-        const index = parseInt(cb.value);
-        if (sortedData[index]) selectedItems.push(sortedData[index]);
+    // MATCH SORT ORDER WITH RENDER FUNCTION
+    // Primary: Spare Part Name (Asc), Secondary: Index/Date (Newest First)
+    const sortedData = [...filteredData].reverse().sort((a, b) => {
+        const nameA = a['Spare Part Name'] || '';
+        const nameB = b['Spare Part Name'] || '';
+        return nameA.localeCompare(nameB, 'th');
     });
 
-    if (selectedItems.length === 0) return;
+    // 2. Identify selected items ONLY
+    const selectedItems = [];
+
+    // Let's gather selected indices first
+    const selectedIndices = new Set();
+    checkedCheckboxes.forEach(cb => selectedIndices.add(parseInt(cb.value)));
+
+    // Gather Selected Items
+    sortedData.forEach((item, index) => {
+        if (selectedIndices.has(index)) {
+            selectedItems.push(item);
+        }
+    });
+
+    if (selectedItems.length === 0) return; // Should be covered by checkbox check, but safety.
 
     // --- VALIDATION: Block Poom -> Nava Nakorn ---
     if (destination.includes('นวนคร')) {
@@ -1320,9 +1342,12 @@ async function processBookingAction(destination) {
     }
 
     // 3. Prompt for Booking Slip
-    let plantCenterCode = '';
-    if (destination.includes('นวนคร')) plantCenterCode = '0301';
-    if (destination.includes('วิภาวดี')) plantCenterCode = '0326';
+    let plantCenterCode = targetPlantCode || '';
+    // Fallback if not passed (legacy)
+    if (!plantCenterCode) {
+        if (destination.includes('นวนคร')) plantCenterCode = '0301';
+        if (destination.includes('วิภาวดี')) plantCenterCode = '0326';
+    }
 
     const { value: bookingSlip, isConfirmed } = await Swal.fire({
         title: 'กรอกเลขใบจองรถ',
@@ -1348,22 +1373,21 @@ async function processBookingAction(destination) {
     let failCount = 0;
     const bookingDate = new Date(); // Timestamp
 
+    const totalToProcess = selectedItems.length;
+
     Swal.fire({
         title: 'กำลังบันทึก...',
-        html: `กำลังประมวลผล 0 / ${selectedItems.length}`,
+        html: `กำลังประมวลผล 0 / ${totalToProcess}`,
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
 
+    // 4.1 Process Selected Items (Update)
     for (let i = 0; i < selectedItems.length; i++) {
         const item = selectedItems[i];
-        Swal.getHtmlContainer().textContent = `กำลังประมวลผล ${i + 1} / ${selectedItems.length}`;
+        Swal.getHtmlContainer().textContent = `กำลังส่งข้อมูล ${i + 1} / ${totalToProcess}`;
 
-        // Construct Payload
-        // Debug: Check if destination is received
-        // console.log("Sending to:", destination); 
-
-        // Manually format date to DD/MM/YYYY to ensure no time component
+        // Manually format date to DD/MM/YYYY
         const day = String(bookingDate.getDate()).padStart(2, '0');
         const month = String(bookingDate.getMonth() + 1).padStart(2, '0');
         const year = bookingDate.getFullYear();
@@ -1371,21 +1395,11 @@ async function processBookingAction(destination) {
 
         const payload = {
             ...item,
+            'Key': (item['Work Order'] || '') + (item['Spare Part Code'] || ''),
             'Booking Slip': bookingSlip,
             'Booking Date': formattedDate,
-            'Plantcenter': plantCenterCode, // Use Code (0301/0326)
-            // GAS needs 'KEY' or Work Order + Part Code. 
-            // 'item' from globalBookingData already has all columns.
+            'Plantcenter': plantCenterCode,
         };
-
-        // DEBUG: Alert for the first item to verify payload
-        if (i === 0) {
-        }
-
-        // Cleanup: GAS might fail if unknown keys are abundant? 
-        // Code.gs ignores unknown keys.
-        // IMPORTANT: ActionStatus must be preserved or set. 
-        // item already has it.
 
         try {
             await fetch(GAS_API_URL, {
@@ -1398,7 +1412,7 @@ async function processBookingAction(destination) {
             // Optimistic Update
             item['Booking Slip'] = bookingSlip;
             item['Booking Date'] = payload['Booking Date'];
-            item['Plantcenter'] = plantCenterCode; // Update UI with Code
+            item['Plantcenter'] = plantCenterCode;
             successCount++;
 
         } catch (e) {
@@ -1407,14 +1421,24 @@ async function processBookingAction(destination) {
         }
     }
 
+
+
     renderBookingTable();
     toggleAllBookingCheckboxes({ checked: false });
 
     Swal.fire({
         icon: successCount > 0 ? 'success' : 'error',
         title: 'เสร็จสิ้น',
-        text: `อัปเดต ${successCount} รายการเรียบร้อย (ล้มเหลว: ${failCount})`,
+        text: `อัปเดตเรียบร้อย: ${successCount} รายการ (ล้มเหลว: ${failCount})`,
     });
+}
+
+async function sendToNavaNakorn() {
+    await processBookingAction('ส่งคลังนวนคร', '0301');
+}
+
+async function sendToVibhavadi() {
+    await processBookingAction('ส่งคลังวิภาวดี', '0326');
 }
 
 function populateBookingFilter() {
@@ -1458,8 +1482,20 @@ function renderBookingTable() {
         filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
     }
 
-    // Sort Data (Newest First)
-    const sortedData = [...filteredData].reverse();
+    // Sort Data (Strict Match with processBookingAction)
+    const sortedData = [...filteredData].reverse().sort((a, b) => {
+        const nameA = a['Spare Part Name'] || '';
+        const nameB = b['Spare Part Name'] || '';
+        return nameA.localeCompare(nameB, 'th');
+    });
+
+    // Calculate Group Totals
+    const groupTotals = sortedData.reduce((acc, item) => {
+        const name = item['Spare Part Name'] || 'Unknown';
+        const qty = parseFloat(item['Qty']) || 0;
+        acc[name] = (acc[name] || 0) + qty;
+        return acc;
+    }, {});
 
     // Headers
     tableHeader.innerHTML = '';
@@ -1481,7 +1517,44 @@ function renderBookingTable() {
     // Rows
     tableBody.innerHTML = '';
 
+    // Track previous item for Grouping
+    let previousPartName = null;
+    if (currentBookingPage > 1 && sortedData[startIndex - 1]) {
+        previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
+    }
+
     pageData.forEach((row, index) => {
+        const currentPartName = row['Spare Part Name'] || 'Unknown';
+        const currentPartCode = row['Spare Part Code'] || '';
+
+        // Insert Group Header if Name Changed
+        if (currentPartName !== previousPartName) {
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'group-header-row';
+            headerRow.style.backgroundColor = '#f8fafc';
+            headerRow.style.fontWeight = 'bold';
+
+            const headerCell = document.createElement('td');
+            headerCell.colSpan = BOOKING_COLUMNS.length;
+            headerCell.style.padding = '12px';
+            headerCell.style.borderTop = '2px solid #e2e8f0';
+            headerCell.style.color = '#334155';
+
+            const total = groupTotals[currentPartName] || 0;
+            headerCell.innerHTML = `
+                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <span>📦 ${currentPartName}</span>
+                         <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
+                         <span style="font-size:0.85em; color:#0369a1; font-weight:bold;">(${total.toLocaleString()} Pc)</span>
+                     </div>
+                 </div>
+             `;
+            headerRow.appendChild(headerCell);
+            tableBody.appendChild(headerRow);
+            previousPartName = currentPartName;
+        }
+
         const tr = document.createElement('tr');
         BOOKING_COLUMNS.forEach(col => {
             const td = document.createElement('td');
@@ -1489,7 +1562,16 @@ function renderBookingTable() {
             if (col.key === 'checkbox') {
                 // Adjust index for value to match global index in sortedData
                 const globalIndex = startIndex + index;
-                td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${globalIndex}" onchange="handleBookingCheckboxChange()">`;
+                // Disable if Booking Slip exists
+                const hasBookingSlip = row['Booking Slip'] && String(row['Booking Slip']).trim() !== '';
+                const disabledAttr = hasBookingSlip ? 'disabled' : '';
+
+                // Check for Poom and Not
+                const receiver = (row['Claim Receiver'] || row.person || '').toLowerCase();
+                const isPoom = receiver.includes('poom');
+                const isNot = receiver.includes('not');
+
+                td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${globalIndex}" data-is-poom="${isPoom}" data-is-not="${isNot}" onchange="handleBookingCheckboxChange()" ${disabledAttr}>`;
                 td.style.textAlign = 'center';
                 tr.appendChild(td);
                 return;
@@ -1579,6 +1661,83 @@ function renderBookingTable() {
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE_BOOKING);
     if (currentBookingPage > totalPages) currentBookingPage = 1;
     renderBookingPagination(totalPages);
+}
+
+function handleBookingCheckboxChange() {
+    const allCheckboxes = document.querySelectorAll('.booking-checkbox');
+    const checkedCheckboxes = document.querySelectorAll('.booking-checkbox:checked');
+    const selectAllCheckbox = document.getElementById('selectAllBooking');
+    const sendNavaBtn = document.querySelector('button[onclick="sendToNavaNakorn()"]');
+    const sendVibhavadiBtn = document.querySelector('button[onclick="sendToVibhavadi()"]');
+    const bulkActions = document.getElementById('bookingBulkActions');
+
+    // Update Select All Header State
+    if (allCheckboxes.length > 0) {
+        if (checkedCheckboxes.length === allCheckboxes.length && allCheckboxes.length > 0) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCheckboxes.length > 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    }
+
+    // Validation Flags
+    let hasNot = false;
+    let hasPoom = false;
+    let hasNonPoom = false;
+
+    checkedCheckboxes.forEach(cb => {
+        if (cb.dataset.isNot === 'true') hasNot = true;
+
+        if (cb.dataset.isPoom === 'true') {
+            hasPoom = true;
+        } else {
+            hasNonPoom = true; // Selected item that is NOT Poom
+        }
+    });
+
+    // 1. "Not" Logic: removed strict hiding. Treats "Not" as "Non-Poom" (Standard).
+    if (bulkActions) {
+        if (checkedCheckboxes.length > 0) {
+            bulkActions.style.display = 'flex';
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+
+    // 2. Nava Nakorn Button Logic: Block if "Poom" is selected
+    if (sendNavaBtn) {
+        if (hasPoom) {
+            sendNavaBtn.disabled = true;
+            sendNavaBtn.style.opacity = '0.5';
+            sendNavaBtn.style.cursor = 'not-allowed';
+            sendNavaBtn.title = 'Items assigned to "Poom" cannot be sent to Nava Nakorn.';
+        } else {
+            sendNavaBtn.disabled = false;
+            sendNavaBtn.style.opacity = '1';
+            sendNavaBtn.style.cursor = 'pointer';
+            sendNavaBtn.title = '';
+        }
+    }
+
+    // 3. Vibhavadi Button Logic: Block if "Non-Poom" is selected (Strict Poom Only)
+    if (sendVibhavadiBtn) {
+        if (hasNonPoom) {
+            sendVibhavadiBtn.disabled = true;
+            sendVibhavadiBtn.style.opacity = '0.5';
+            sendVibhavadiBtn.style.cursor = 'not-allowed';
+            sendVibhavadiBtn.title = 'Only items assigned to "Poom" can be sent to Vibhavadi.';
+        } else {
+            sendVibhavadiBtn.disabled = false;
+            sendVibhavadiBtn.style.opacity = '1';
+            sendVibhavadiBtn.style.cursor = 'pointer';
+            sendVibhavadiBtn.title = '';
+        }
+    }
 }
 
 function renderBookingPagination(totalPages) {
@@ -2332,6 +2491,13 @@ async function saveWorkOrderDetail() {
         // Refresh Table
         if (currentDetailContext) {
             renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
+
+            // Refresh Deck View as well to update badge counts
+            if (currentDetailContext.tabKey === 'navanakorn') {
+                renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+            } else if (currentDetailContext.tabKey === 'vibhavadi') {
+                renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+            }
         }
 
         closeWorkOrderModal();
@@ -2371,37 +2537,88 @@ function renderSupplierTable() {
         return item['Recripte'] && item['Recripte'].trim() !== '';
     });
 
-    // Render Header
-    tableHeader.innerHTML = '';
-    const trHead = document.createElement('tr');
-    BOOKING_COLUMNS.forEach(col => {
-        // Skip Checkbox for this view? Or keep consistent? 
-        // Keeping consistent is safer, but checkbox might not work if logic isn't wired.
-        // Let's keep it but maybe disable it visually or just leave it.
-        const th = document.createElement('th');
-        th.innerHTML = col.header;
-        trHead.appendChild(th);
+    // Sort Data: Primary = Spare Part Name (Asc), Secondary = Booking Date (Desc)
+    const sortedData = [...supplierData].reverse().sort((a, b) => {
+        const nameA = a['Spare Part Name'] || '';
+        const nameB = b['Spare Part Name'] || '';
+        return nameA.localeCompare(nameB, 'th');
     });
-    tableHeader.appendChild(trHead);
 
-    // Render Body
+    // Calculate Group Totals (across ALL sorted data to show correct totals despite pagination)
+    const groupTotals = sortedData.reduce((acc, item) => {
+        const name = item['Spare Part Name'] || 'Unknown';
+        const qty = parseFloat(item['Qty']) || 0;
+        acc[name] = (acc[name] || 0) + qty;
+        return acc;
+    }, {});
+
+
+    // Headers
+    tableHeader.innerHTML = '';
+    BOOKING_COLUMNS.forEach(col => {
+        const th = document.createElement('th');
+        if (col.header.includes('<')) {
+            th.innerHTML = col.header;
+        } else {
+            th.textContent = col.header;
+        }
+        tableHeader.appendChild(th);
+    });
+
+    // Pagination Logic
+    const startIndex = (currentBookingPage - 1) * ITEMS_PER_PAGE_BOOKING;
+    const endIndex = startIndex + ITEMS_PER_PAGE_BOOKING;
+    const pageData = sortedData.slice(startIndex, endIndex);
+
     tableBody.innerHTML = '';
-    if (supplierData.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center; padding: 2rem;">No items waiting for supplier found.</td></tr>';
-        return;
+
+    // Track previous item for Grouping (handle pagination boundary)
+    let previousPartName = null;
+    if (currentBookingPage > 1 && sortedData[startIndex - 1]) {
+        previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
     }
 
-    supplierData.forEach(item => {
+    pageData.forEach((item, index) => {
+        const currentPartName = item['Spare Part Name'] || 'Unknown';
+        const currentPartCode = item['Spare Part Code'] || '';
+
+        // Insert Group Header if Name Changed
+        if (currentPartName !== previousPartName) {
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'group-header-row';
+            headerRow.style.backgroundColor = '#f8fafc';
+            headerRow.style.fontWeight = 'bold';
+
+            const headerCell = document.createElement('td');
+            headerCell.colSpan = BOOKING_COLUMNS.length;
+            headerCell.style.padding = '12px';
+            headerCell.style.borderTop = '2px solid #e2e8f0';
+            headerCell.style.color = '#334155';
+
+            const total = groupTotals[currentPartName] || 0;
+            headerCell.innerHTML = `
+                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <span>📦 ${currentPartName}</span>
+                         <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
+                         <span style="font-size:0.85em; color:#0369a1; font-weight:bold;">(${total.toLocaleString()} Pc)</span>
+                     </div>
+                 </div>
+             `;
+            headerRow.appendChild(headerCell);
+            tableBody.appendChild(headerRow);
+            previousPartName = currentPartName;
+        }
+
         const tr = document.createElement('tr');
         BOOKING_COLUMNS.forEach(col => {
             const td = document.createElement('td');
             let value = item[col.key] || '';
 
             if (col.key === 'checkbox') {
-                td.innerHTML = '<input type="checkbox" disabled>'; // Disable checkbox for now
+                td.innerHTML = '<input type="checkbox" disabled>';
                 td.style.textAlign = 'center';
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
-                // Make Work Order and Serial Number clickable
                 td.textContent = value;
                 td.style.cursor = 'pointer';
                 td.style.color = 'var(--primary-color)';
@@ -2411,11 +2628,8 @@ function renderSupplierTable() {
                     openWorkOrderModal(item);
                 };
             } else {
-                // Format Dates
+                // Date formatting
                 if ((col.key === 'Timestamp' || col.key === 'RecripteDate') && value) {
-                    // Try to parse if not already formatted string
-                    // Value might be "DD/MM/YYYY" or ISO
-                    // Just display raw strings usually fine if consistent, or simple parse
                     const date = new Date(value);
                     if (!isNaN(date.getTime()) && value.includes && value.includes('T')) {
                         value = date.toLocaleString();
@@ -2424,6 +2638,7 @@ function renderSupplierTable() {
                 if (col.key === 'Booking Date' && value) {
                     let s = String(value);
                     if (s.indexOf('T') > -1) s = s.split('T')[0];
+                    if (s.indexOf(' ') > -1) s = s.split(' ')[0];
                     value = s;
                 }
                 td.textContent = value;
