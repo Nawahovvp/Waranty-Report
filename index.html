@@ -199,6 +199,8 @@
                 <div class="tab-btn" onclick="switchTab('navanakorn')">ใบจองรถนวนคร</div>
                 <div class="tab-btn" onclick="switchTab('vibhavadi')">ใบจองรถวิภาวดี</div>
                 <div class="tab-btn" onclick="switchTab('supplier')">อะไหล่รอส่งSupplier</div>
+                <div class="tab-btn" onclick="switchTab('claimSent')">ส่งเคลมแล้ว</div>
+                <div class="tab-btn" onclick="switchTab('history')">ประวัติการเคลม</div>
             </div>
 
             <!-- Tab 1: Main Data (Existing Content) -->
@@ -277,9 +279,22 @@
                     <label for="bookingPartFilter"
                         style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
                         Part:</label>
-                    <select id="bookingPartFilter" class="filter-select" onchange="renderBookingTable()">
+                    <select id="bookingPartFilter" class="filter-select" onchange="handleBookingPartFilterChange()">
                         <option value="">All Spare Parts</option>
                     </select>
+
+                    <!-- Multi-Select Receiver Filter -->
+                    <div style="position: relative; margin-left: 1rem;">
+                        <button onclick="toggleReceiverDropdown()" class="filter-select"
+                            style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-width: 150px; background-color: white;">
+                            <span id="receiverFilterLabel">All Receivers</span>
+                            <span style="font-size: 0.7em; margin-left: 0.5rem;">▼</span>
+                        </button>
+                        <div id="bookingReceiverDropdown"
+                            style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 50; padding: 0.5rem; min-width: 200px; max-height: 300px; overflow-y: auto;">
+                            <!-- Checkboxes injected by JS -->
+                        </div>
+                    </div>
 
                     <!-- Booking Bulk Actions -->
                     <div id="bookingBulkActions"
@@ -375,12 +390,81 @@
 
             <!-- TAB 5: Supplier View -->
             <div id="tab-content-supplier" class="tab-content">
+                <div class="filter-bar">
+                    <label for="supplierPartFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
+                        Part:</label>
+                    <select id="supplierPartFilter" class="filter-select" onchange="renderSupplierTable()">
+                        <option value="">All Spare Parts</option>
+                    </select>
+
+                    <!-- Multi-Select Product Filter -->
+                    <div style="position: relative; margin-left: 1rem;">
+                        <button onclick="toggleSupplierProductDropdown()" class="filter-select"
+                            style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-width: 150px; background-color: white;">
+                            <span id="supplierProductFilterLabel">All Products</span>
+                            <span style="font-size: 0.7em; margin-left: 0.5rem;">▼</span>
+                        </button>
+                        <div id="supplierProductDropdown"
+                            style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 50; padding: 0.5rem; min-width: 200px; max-height: 300px; overflow-y: auto;">
+                            <!-- Checkboxes injected by JS -->
+                        </div>
+                    </div>
+
+
+
+                    <!-- Supplier Bulk Actions -->
+                    <div id="supplierBulkActions"
+                        style="display: none; gap: 0.5rem; align-items: center; margin-left: 1rem; border-left: 1px solid var(--border-color); padding-left: 1rem;">
+                        <span
+                            style="color: var(--text-secondary); font-size: 0.8em; font-weight: normal; margin-right: 0.25rem;">Action:</span>
+                        <button onclick="sendClaim()" class="btn-sworp" style="background-color: #f97316;">ส่งเคลม (Send
+                            Claim)</button>
+                    </div>
+                </div>
                 <div class="table-container">
                     <table id="supplierTable">
                         <thead id="supplierTableHeader"></thead>
                         <tbody id="supplierTableBody"></tbody>
                     </table>
                 </div>
+                <div id="supplierPaginationControls" class="pagination"></div>
+            </div>
+
+            <!-- TAB 6: Claim Sent View -->
+            <div id="tab-content-claimSent" class="tab-content">
+                <div class="filter-bar">
+                    <label for="claimSentPartFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
+                        Part:</label>
+                    <select id="claimSentPartFilter" class="filter-select" onchange="renderClaimSentTable()">
+                        <option value="">All Spare Parts</option>
+                    </select>
+                </div>
+                <div class="table-container">
+                    <table id="claimSentTable">
+                        <thead id="claimSentTableHeader"></thead>
+                        <tbody id="claimSentTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="claimSentPaginationControls" class="pagination"></div>
+            </div>
+
+            <!-- TAB 7: Claim History View -->
+            <div id="tab-content-history" class="tab-content">
+                <div class="filter-bar">
+                    <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Search:</label>
+                    <input type="text" id="historySearchInput" placeholder="Search History..."
+                        style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem; min-width: 250px;"
+                        oninput="renderHistoryTable()">
+                </div>
+                <div class="table-container">
+                    <table id="historyTable">
+                        <thead id="historyTableHeader"></thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="historyPaginationControls" class="pagination"></div>
             </div>
         </div>
         <!-- Work Order Detail Modal (Redesigned) -->

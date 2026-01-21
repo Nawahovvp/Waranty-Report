@@ -1,4 +1,4 @@
-﻿const SCRAP_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C1MeLvv2PrOEQsqmXQplZt1xLuD5Z4KUGOrnGjYrh_A/gviz/tq?tqx=out:csv&sheet=Scrap';
+const SCRAP_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C1MeLvv2PrOEQsqmXQplZt1xLuD5Z4KUGOrnGjYrh_A/gviz/tq?tqx=out:csv&sheet=Scrap';
 const WORKFILTER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1C-_TRQcz2w0ia9bF9BfFcln5X_dX8T_cNfVUI-oU8ho/gviz/tq?tqx=out:csv&sheet=WorkFilter';
 const EMPLOYEE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1eqVoLsZxGguEbRCC5rdI4iMVtQ7CK4T3uXRdx8zE3uw/gviz/tq?tqx=out:csv&sheet=EmployeeWeb';
 const WARRANTY_SHEET_URL = 'https://docs.google.com/spreadsheets/d/19WWSESBcerEUlEDzM4lu3cglPoTHOWUl4P0prexqYpc/gviz/tq?tqx=out:csv&sheet=WarrantyData';
@@ -65,6 +65,7 @@ const PLANT_MAPPING = {
 
 const BOOKING_COLUMNS = [
     { header: '<input type="checkbox" id="selectAllBooking" onclick="toggleAllBookingCheckboxes(this)">', key: 'checkbox' },
+    { header: 'Status', key: 'CustomStatus' }, // Added Status
     { header: 'ใบจองรถ', key: 'Booking Slip' }, // Moved to 2nd position
     { header: 'Work Order', key: 'Work Order' },
     { header: 'Spare Part Code', key: 'Spare Part Code' },
@@ -90,6 +91,49 @@ const BOOKING_COLUMNS = [
 ];
 
 
+const SUPPLIER_COLUMNS = [
+    { header: '<input type="checkbox" id="selectAllSupplier" onclick="toggleAllSupplierCheckboxes(this)">', key: 'checkbox' }, // Enabled header
+    { header: 'Status', key: 'CustomStatus' }, // Added Status
+    { header: 'ใบจองรถ', key: 'Booking Slip' },
+    { header: 'Work Order', key: 'Work Order' },
+    { header: 'Spare Part Code', key: 'Spare Part Code' },
+    { header: 'Spare Part Name', key: 'Spare Part Name' },
+    { header: 'Old Material Code', key: 'Old Material Code' },
+    { header: 'Qty', key: 'Qty' },
+    { header: 'Serial Number', key: 'Serial Number' },
+    { header: 'Store Code', key: 'Store Code' },
+    { header: 'Store Name', key: 'Store Name' },
+    { header: 'Claim Receiver', key: 'Claim Receiver' },
+    { header: 'รหัสช่าง', key: 'รหัสช่าง' },
+    { header: 'ชื่อช่าง', key: 'ชื่อช่าง' },
+    { header: 'Mobile', key: 'Mobile' },
+    { header: 'Plantcenter', key: 'Plantcenter' },
+    { header: 'Plant', key: 'Plant' },
+    { header: 'Product', key: 'Product' },
+    { header: 'Warranty Action', key: 'Warranty Action' },
+    { header: 'Recorder', key: 'Recorder' },
+    { header: 'Recripte', key: 'Recripte' },
+    { header: 'Recripte Date', key: 'RecripteDate' },
+    { header: 'Timestamp', key: 'Timestamp' },
+    { header: 'วันที่จองรถ', key: 'Booking Date' },
+    { header: 'Claim Date', key: 'Claim Date' },
+    { header: 'ClaimSup', key: 'ClaimSup' }
+];
+
+function getComputedStatus(item) {
+    if (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '') {
+        return '<span class="status-badge status-claim-sent">ส่งเคลมแล้ว</span>';
+    }
+    if (item['Recripte'] && String(item['Recripte']).trim() !== '') {
+        return '<span class="status-badge status-waiting-claim">รอส่งเคลม</span>';
+    }
+    if (item['Booking Slip'] && String(item['Booking Slip']).trim() !== '') {
+        return '<span class="status-badge status-transit">ระหว่างขนส่ง</span>';
+    }
+    return '<span class="status-badge status-local">คลังพื้นที่</span>';
+}
+
+
 
 let currentBookingPage = 1;
 const ITEMS_PER_PAGE_BOOKING = 20;
@@ -100,7 +144,13 @@ let displayedData = []; // Data currently shown (filtered by UI)
 let globalBookingData = []; // Store raw warranty data for second tab
 let currentPage = 1;
 let editingItem = null; // Item currently being edited
+let currentSupplierPage = 1;
+let currentClaimSentPage = 1;
+let currentHistoryPage = 1;
 const ITEMS_PER_PAGE = 20;
+let supplierProductOptions = new Set(); // Store selected products for Supplier Tab filter
+
+
 
 async function fetchData(url) {
     try {
@@ -243,9 +293,21 @@ function switchTab(tabId) {
         renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi'); // Pass tab key
     } else if (tabId === 'supplier') {
         tabs[4].classList.add('active');
-        document.getElementById('tab-content-supplier').style.display = 'block';
+        document.getElementById('tab-content-supplier').style.display = 'flex';
         document.getElementById('tab-content-supplier').classList.add('active');
-        renderSupplierTable(); // New Function
+        populateSupplierFilter(); // NEW: Filter for supplier
+        renderSupplierTable(); // Render Table
+    } else if (tabId === 'claimSent') {
+        tabs[5].classList.add('active');
+        document.getElementById('tab-content-claimSent').style.display = 'flex';
+        document.getElementById('tab-content-claimSent').classList.add('active');
+        populateClaimSentFilter();
+        renderClaimSentTable();
+    } else if (tabId === 'history') {
+        tabs[6].classList.add('active');
+        document.getElementById('tab-content-history').style.display = 'flex';
+        document.getElementById('tab-content-history').classList.add('active');
+        renderHistoryTable();
     }
 }
 
@@ -292,29 +354,74 @@ async function loadTableData() {
 
         // Create Set of Saved Keys (KEY column in WarrantyData)
         const workFilterMap = new Map();
+        const workFilterDigitMap = new Map(); // Fuzzy Match Helper
+        let wfCodeKey = 'Work Order Number 1';
+        let wfProductKey = 'Product';
+
+        if (workFilterData.length > 0) {
+            const headers = Object.keys(workFilterData[0]);
+            wfCodeKey = headers.find(h => h.toLowerCase().includes('work') && (h.toLowerCase().includes('order') || h.toLowerCase().includes('no'))) || headers.find(h => h.toLowerCase().includes('key')) || 'Work Order Number 1';
+            wfProductKey = headers.find(h => h.toLowerCase().includes('product')) || 'Product';
+            console.log(`[DEBUG] Detected WorkFilter Keys - Code: ${wfCodeKey}, Product: ${wfProductKey}`);
+        }
+
         workFilterData.forEach(row => {
-            const key = row['Work Order Number 1']?.trim();
+            const rawKey = row[wfCodeKey];
+            const key = rawKey?.trim().toLowerCase();
             if (key) workFilterMap.set(key, row);
+
+
+
+            // Digit Map
+            if (rawKey) {
+                const digits = String(rawKey).replace(/\D/g, '');
+                if (digits.length > 3) { // Only map if sufficient length to avoid false positives with small numbers
+                    workFilterDigitMap.set(digits, row);
+                }
+            }
         });
+        console.log(`[DEBUG] workFilterMap size: ${workFilterMap.size}`);
 
         // Get Current User Plant & Normalize
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const userPlant = currentUser['Plant'] ? currentUser['Plant'].toString().trim().padStart(4, '0') : null;
 
         // Create Set of Saved Keys AND Filter Global Booking Data
-        // Filter warrantyData by userPlant
-        if (userPlant) {
-            globalBookingData = warrantyData.filter(row => {
-                const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
-                const action = row['ActionStatus'] || row['Warranty Action'] || '';
-                return rowPlant === userPlant && action === 'เคลมประกัน';
-            });
-        } else {
-            globalBookingData = warrantyData.filter(row => {
-                const action = row['ActionStatus'] || row['Warranty Action'] || '';
-                return action === 'เคลมประกัน';
-            });
+        let warrantyWOKey = 'Work Order';
+        if (warrantyData.length > 0) {
+            const wHeaders = Object.keys(warrantyData[0]);
+            warrantyWOKey = wHeaders.find(h => h.toLowerCase().includes('work') && h.toLowerCase().includes('order')) || 'Work Order';
+            console.log('[DEBUG] Warranty Row Keys:', wHeaders);
+            console.log('[DEBUG] Detected Warranty WO Key:', warrantyWOKey);
         }
+
+        globalBookingData = warrantyData.filter(row => {
+            const action = row['ActionStatus'] || row['Warranty Action'] || '';
+            return action === 'เคลมประกัน';
+        }).map(item => {
+            // Enrich with Product from WorkFilter if missing
+            if (!item['Product']) {
+                const rawWO = String(item[warrantyWOKey] || '');
+                const wo = rawWO.trim().toLowerCase();
+
+                // 1. Exact Match
+                if (wo && workFilterMap.has(wo)) {
+                    item['Product'] = workFilterMap.get(wo)[wfProductKey];
+                }
+                // 2. Fuzzy Digit Match
+                else {
+                    const digits = rawWO.replace(/\D/g, '');
+                    if (digits.length > 3 && workFilterDigitMap.has(digits)) {
+                        item['Product'] = workFilterDigitMap.get(digits)[wfProductKey];
+                        // console.log(`[DEBUG] Fuzzy Match for ${wo} -> Product: ${item['Product']}`);
+                    }
+                }
+            }
+            return item;
+        });
+
+        const itemsWithProduct = globalBookingData.filter(i => i['Product']).length;
+        console.log(`[DEBUG] GlobalBookingData items with Product: ${itemsWithProduct} / ${globalBookingData.length}`);
 
         // Render Booking Table immediately
         populateBookingFilter();
@@ -345,6 +452,18 @@ async function loadTableData() {
             });
         }
 
+        // Detect Keys in Scrap Data (Robustness)
+        let scrapCodeKey = 'Spare Part Code';
+        let scrapNameKey = 'Spare Part Name';
+        let scrapWOKey = 'work order';
+
+        if (scrapData && scrapData.length > 0) {
+            const scrapHeaders = Object.keys(scrapData[0]);
+            scrapCodeKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'spare part code') || scrapCodeKey;
+            scrapNameKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'spare part name') || scrapNameKey;
+            scrapWOKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'work order') || scrapWOKey;
+        }
+
         // Join Data & Normalize Data Plant
         fullData = scrapData.map(scrapRow => {
             // Normalize Plant in Data (e.g. "326" -> "0326")
@@ -352,20 +471,30 @@ async function loadTableData() {
                 scrapRow['plant'] = scrapRow['plant'].toString().trim().padStart(4, '0');
             }
 
-            const workOrderKey = scrapRow['work order']?.trim();
+            const workOrderKey = scrapRow[scrapWOKey]?.trim();
 
-            // Generate KEY for status check (Work Order + Spare Part Code)
-            const uniqueKey = (scrapRow['work order'] || '') + (scrapRow['Spare Part Code'] || '');
+            // Generate KEY for status check
+            // Use detected keys for access
+            const codeVal = scrapRow[scrapCodeKey] || '';
+            const uniqueKey = (workOrderKey || '') + codeVal;
             const statusValue = savedStatusMap.get(uniqueKey) || '';
 
             // Get Person and Name from Parts Map
-            const partCode = scrapRow['Spare Part Code']?.trim();
+            const partCode = codeVal.trim();
             const personValue = partsMap.get(partCode) || '';
 
             // Override Spare Part Name if found in Parts DB
             if (partCode && partsNameMap.has(partCode)) {
-                scrapRow['Spare Part Name'] = partsNameMap.get(partCode);
+                scrapRow[scrapNameKey] = partsNameMap.get(partCode);
             }
+
+            // Ensure we rely on standard keys for the rest of the app ??
+            // OR normalize the row object itself?
+            // Safer to normalize the row object to have standard keys!
+            if (scrapCodeKey !== 'Spare Part Code') scrapRow['Spare Part Code'] = scrapRow[scrapCodeKey];
+            if (scrapNameKey !== 'Spare Part Name') scrapRow['Spare Part Name'] = scrapRow[scrapNameKey];
+            if (scrapWOKey !== 'work order') scrapRow['work order'] = scrapRow[scrapWOKey];
+
 
             return {
                 scrap: scrapRow,
@@ -394,6 +523,35 @@ async function loadTableData() {
 
         displayedData = [...fullData];
         populateFilters();
+
+        sortDisplayedData(); // Ensure sorted initially
+
+
+        populateFilters();
+
+        // Init Other Tabs - Split try/catch for robustness
+        try {
+            console.log('Calling populateBookingFilter...');
+            if (typeof populateBookingFilter === 'function') populateBookingFilter();
+            renderBookingTable();
+        } catch (e) { console.error("Error init Booking:", e); }
+
+        try {
+            console.log('Calling populateSupplierFilter...');
+            if (typeof populateSupplierFilter === 'function') populateSupplierFilter();
+            else console.error('populateSupplierFilter is NOT a function');
+            renderSupplierTable();
+        } catch (e) { console.error("Error init Supplier:", e); }
+
+        try {
+            populateClaimSentFilter();
+            renderClaimSentTable();
+            renderHistoryTable();
+            // Deck Views
+            renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+            renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+        } catch (e) { console.error("Error init rest:", e); }
+
         sortDisplayedData(); // Ensure sorted initially
         updateTotalQty();
 
@@ -591,7 +749,13 @@ function renderTable() {
             if (col.key === 'checkbox') {
                 const isSaved = !!item.status;
                 const isLE = item.fullRow['Product'] === 'L&E';
-                const disabledAttr = (isSaved || isLE) ? 'disabled' : '';
+                // Check if Store Code is missing
+                const storeCode = item.fullRow['Store Code'] || '';
+                const isMissingStore = !storeCode || String(storeCode).trim() === '';
+
+                // User requested to allow selecting Poom/L&E, so we remove isLE from disabled check
+                // BUT if Store Code is missing, we MUST disable it.
+                const disabledAttr = (isSaved || isMissingStore) ? 'disabled' : '';
                 td.innerHTML = `<input type="checkbox" class="row-checkbox" value="${startIndex + index}" onchange="handleCheckboxChange()" ${disabledAttr}>`;
                 td.style.textAlign = 'center';
                 tr.appendChild(td);
@@ -601,6 +765,11 @@ function renderTable() {
             // Apply Green Tab Style for specific columns if Saved
             // Apply Green Tab Style for specific columns if Saved (Status is not empty)
             const greenColumns = ['status', 'work order', 'Spare Part Code', 'Spare Part Name', 'old material code', 'qty', 'Serial Number', 'Store Code', 'Store Name'];
+
+            // Check Store Code for Status Display
+            const storeCode = item.fullRow['Store Code'] || '';
+            const isMissingStore = !storeCode || String(storeCode).trim() === '';
+
             if (item.status && greenColumns.includes(col.key)) {
                 const span = document.createElement('span');
                 span.textContent = value;
@@ -622,14 +791,29 @@ function renderTable() {
 
                 span.style.backgroundColor = bgColor;
                 span.style.color = textColor;
-                span.style.fontSize = '0.75rem'; // Small size
+                span.style.fontSize = '0.875rem'; // Standardize
                 span.style.fontWeight = '600';
                 span.style.padding = '0.25rem 0.5rem';
                 span.style.borderRadius = '4px';
                 span.style.display = 'inline-block'; // Ensure padding works
                 td.appendChild(span);
-            } else {
+            }
+            // NEW: If Status is empty AND Store Code is missing (for Status Column or others?)
+            else if (!item.status && isMissingStore && col.key === 'status') {
+                const span = document.createElement('span');
+                span.textContent = 'Wait Data';
+                span.style.backgroundColor = '#f1f5f9'; // Slate-100
+                span.style.color = '#ef4444'; // Red-500
+                span.style.fontSize = '0.875rem'; // Standardize
+                span.style.fontWeight = '600';
+                span.style.padding = '0.25rem 0.5rem';
+                span.style.borderRadius = '4px';
+                span.style.display = 'inline-block';
+                td.appendChild(span);
+            }
+            else {
                 td.textContent = value;
+                td.style.fontSize = '0.875rem'; // Standardize base text
             }
 
             if (col.key === 'Serial Number') {
@@ -648,6 +832,29 @@ function renderTable() {
                 td.style.fontWeight = '500';
                 td.title = 'Click to view details';
                 td.onclick = () => openStoreModal(item);
+            }
+
+            // Person (Claim Receiver) Click
+            if (col.key === 'Person' || col.source === 'P') {
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.fontWeight = '500';
+                td.title = 'Click to edit Person';
+                td.onclick = () => openMainPersonModal(item);
+            }
+
+            // Mobile (Phone) Click
+            if (col.key === 'Mobile' || col.source === 'T' || col.key === 'Phone') {
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.fontWeight = '500';
+                td.title = 'Click to edit Mobile';
+                td.onclick = () => openMainMobileModal(item);
+                // If empty, show [Add]
+                if (!value) {
+                    td.innerText = '[Add]';
+                    td.style.fontSize = '0.875rem'; // Standardize
+                }
             }
 
 
@@ -1133,6 +1340,20 @@ async function processBulkAction(actionName) {
                 return;
             }
 
+            // NEW: Validation for Mobile (Phone) if Claim Warranty
+            if (actionName === 'เคลมประกัน') {
+                // Check if Mobile is empty
+                const mobile = item.technicianPhone || '';
+                if (!mobile || String(mobile).trim() === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'ข้อมูลไม่ครบถ้วน',
+                        text: `รายการ ${item.scrap['work order']}: กรุณาระบุเบอร์โทรศัพท์ (Mobile) ก่อนบันทึก`,
+                    });
+                    return;
+                }
+            }
+
             selectedItems.push(item);
         }
     }
@@ -1255,6 +1476,23 @@ async function processBulkAction(actionName) {
 
     populateBookingFilter();
     renderBookingTable();
+
+    // Sync Other Tabs (User Request: Rerender All Tabs)
+    try {
+        renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+        renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+
+        populateSupplierFilter();
+        renderSupplierTable();
+
+        populateClaimSentFilter();
+        renderClaimSentTable();
+
+        renderHistoryTable();
+    } catch (err) {
+        console.warn('Error refreshing other tabs:', err);
+    }
+
     // -------------------------------------------------------------
     // END: Sync Recording Booking Data
     // -------------------------------------------------------------
@@ -1269,57 +1507,152 @@ async function processBulkAction(actionName) {
     });
 }
 
-function toggleAllBookingCheckboxes(source) {
-    const checkboxes = document.querySelectorAll('.booking-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
-    handleBookingCheckboxChange();
+// --- Global Selection State for Booking Tab ---
+let currentBookingDisplayedData = []; // Populated in renderBookingTable
+let selectedBookingKeys = new Set(); // Stores unique keys (e.g., Work Order + Spare Part Code)
+
+// Helper to generate unique key
+function getBookingKey(row) {
+    return (row['Work Order'] || '') + '_' + (row['Spare Part Code'] || '') + '_' + (row['Old Material Code'] || '');
 }
 
-function handleBookingCheckboxChange() {
-    const checkboxes = document.querySelectorAll('.booking-checkbox:checked');
+function handleBookingPartFilterChange() {
+    selectedBookingKeys.clear();
+    renderBookingTable();
+}
+
+function toggleAllBookingCheckboxes(source) {
+    const isChecked = source.checked;
+
+    // Use currentDisplayedData to Select/Deselect All filtered items
+    currentBookingDisplayedData.forEach(row => {
+        // Skip Disabled Items (Already processed)
+        const hasBookingSlip = row['Booking Slip'] && String(row['Booking Slip']).trim() !== '';
+        const hasRecripte = row['Recripte'] && String(row['Recripte']).trim() !== '';
+        // Note: Missing Store Code or other disable logic should be consistent? 
+        // For Booking tab, logic is mainly Slip/Recripte.
+
+        if (!hasBookingSlip && !hasRecripte) {
+            const key = getBookingKey(row);
+            if (isChecked) {
+                selectedBookingKeys.add(key);
+            } else {
+                selectedBookingKeys.delete(key);
+            }
+        }
+    });
+
+    // Re-render to update checkboxes state
+    renderBookingTable();
+}
+
+function handleBookingCheckboxChange(checkbox) {
+    // If checkbox is passed (from onchange="handleBookingCheckboxChange(this)")
+    if (checkbox) {
+        const key = checkbox.value; // Value will be the unique key
+        if (checkbox.checked) {
+            selectedBookingKeys.add(key);
+        } else {
+            selectedBookingKeys.delete(key);
+        }
+    }
+
+    // Update Button States (Active/Inactive)
+    updateBookingActionButtons();
+}
+
+function updateBookingActionButtons() {
     const actionDiv = document.getElementById('bookingBulkActions');
-    if (checkboxes.length > 0) {
+    const sendNavaBtn = document.querySelector('button[onclick="sendToNavaNakorn()"]');
+    const sendVibhavadiBtn = document.querySelector('button[onclick="sendToVibhavadi()"]');
+
+    if (selectedBookingKeys.size > 0) {
         actionDiv.style.display = 'flex';
     } else {
         actionDiv.style.display = 'none';
+        return;
+    }
+
+    // Validation Flags
+    let hasPoom = false;
+    let hasNonPoom = false;
+
+    // Iterate Selected Items to check Poom/Not status
+    // Need to lookup item from keys. Since keys are in Set, we iterate global or displayed?
+    // Safer to iterate selectedBookingKeys and find items in user's view context or valid data.
+    // Optimization check: iterating selectedBookingKeys against globalBookingData map? 
+    // Let's just create a Lookup Map for performance if slow.
+    // For now, iterate selected keys and find data (or store extra metadata in Set? No)
+    // Actually, we can check `currentBookingDisplayedData` or `globalBookingData`.
+
+    // PERF: Create Map for fast lookup
+    const lookupMap = new Map();
+    // Assuming globalBookingData covers everything
+    globalBookingData.forEach(row => lookupMap.set(getBookingKey(row), row));
+
+    selectedBookingKeys.forEach(key => {
+        const row = lookupMap.get(key);
+        if (row) {
+            const receiver = (row['Claim Receiver'] || row.person || '').toLowerCase();
+            const isPoom = receiver.includes('poom');
+            if (isPoom) hasPoom = true;
+            else hasNonPoom = true;
+        }
+    });
+
+    // 2. Nava Nakorn Button Logic: Block if "Poom" is selected
+    if (sendNavaBtn) {
+        if (hasPoom) {
+            sendNavaBtn.disabled = true;
+            sendNavaBtn.style.opacity = '0.5';
+            sendNavaBtn.style.cursor = 'not-allowed';
+            sendNavaBtn.title = 'Items assigned to "Poom" cannot be sent to Nava Nakorn.';
+        } else {
+            sendNavaBtn.disabled = false;
+            sendNavaBtn.style.opacity = '1';
+            sendNavaBtn.style.cursor = 'pointer';
+            sendNavaBtn.title = '';
+        }
+    }
+
+    // 3. Vibhavadi Button Logic: Block if "Non-Poom" is selected (Strict Poom Only)
+    if (sendVibhavadiBtn) {
+        if (hasNonPoom) {
+            sendVibhavadiBtn.disabled = true;
+            sendVibhavadiBtn.style.opacity = '0.5';
+            sendVibhavadiBtn.style.cursor = 'not-allowed';
+            sendVibhavadiBtn.title = 'Only items assigned to "Poom" can be sent to Vibhavadi.';
+        } else {
+            sendVibhavadiBtn.disabled = false;
+            sendVibhavadiBtn.style.opacity = '1';
+            sendVibhavadiBtn.style.cursor = 'pointer';
+            sendVibhavadiBtn.title = '';
+        }
     }
 }
 
+// REMOVED DUPLICATE handleBookingCheckboxChange HERE
+
+
 async function processBookingAction(destination, targetPlantCode) {
-    const checkboxes = document.querySelectorAll('.booking-checkbox');
-    const checkedCheckboxes = document.querySelectorAll('.booking-checkbox:checked');
+    if (selectedBookingKeys.size === 0) return;
 
-    if (checkedCheckboxes.length === 0) return;
-
-    // 1. Re-derive filtered & sorted data to match indices
-    const filterValue = document.getElementById('bookingPartFilter').value;
-    let filteredData = globalBookingData;
-    if (filterValue) {
-        filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
-    }
-    // MATCH SORT ORDER WITH RENDER FUNCTION
-    // Primary: Spare Part Name (Asc), Secondary: Index/Date (Newest First)
-    const sortedData = [...filteredData].reverse().sort((a, b) => {
-        const nameA = a['Spare Part Name'] || '';
-        const nameB = b['Spare Part Name'] || '';
-        return nameA.localeCompare(nameB, 'th');
-    });
-
-    // 2. Identify selected items ONLY
+    // 1. Gather Selected Items from Global Data
     const selectedItems = [];
 
-    // Let's gather selected indices first
-    const selectedIndices = new Set();
-    checkedCheckboxes.forEach(cb => selectedIndices.add(parseInt(cb.value)));
+    // Create Lookup Map (Work Order + Code -> Item)
+    const lookupMap = new Map();
+    // Assuming globalBookingData covers everything needed
+    globalBookingData.forEach(row => lookupMap.set(getBookingKey(row), row));
 
-    // Gather Selected Items
-    sortedData.forEach((item, index) => {
-        if (selectedIndices.has(index)) {
+    selectedBookingKeys.forEach(key => {
+        const item = lookupMap.get(key);
+        if (item) {
             selectedItems.push(item);
         }
     });
+
+    if (selectedItems.length === 0) return;
 
     if (selectedItems.length === 0) return; // Should be covered by checkbox check, but safety.
 
@@ -1424,7 +1757,8 @@ async function processBookingAction(destination, targetPlantCode) {
 
 
     renderBookingTable();
-    toggleAllBookingCheckboxes({ checked: false });
+    selectedBookingKeys.clear();
+    renderBookingTable();
 
     Swal.fire({
         icon: successCount > 0 ? 'success' : 'error',
@@ -1440,6 +1774,94 @@ async function sendToNavaNakorn() {
 async function sendToVibhavadi() {
     await processBookingAction('ส่งคลังวิภาวดี', '0326');
 }
+
+// --- Booking Receiver Filter Logic ---
+let bookingReceiverOptions = new Set(); // Stores selected receiver names
+
+function toggleReceiverDropdown() {
+    const dropdown = document.getElementById('bookingReceiverDropdown');
+    const isHidden = dropdown.style.display === 'none';
+    dropdown.style.display = isHidden ? 'block' : 'none';
+}
+
+function handleReceiverCheckboxChange() {
+    selectedBookingKeys.clear(); // Clear selection on filter change to avoid ghost selections
+
+    bookingReceiverOptions.clear();
+    const checkboxes = document.querySelectorAll('.receiver-checkbox:checked');
+    checkboxes.forEach(cb => {
+        bookingReceiverOptions.add(cb.value);
+    });
+
+    // Update Label
+    const label = document.getElementById('receiverFilterLabel');
+    if (bookingReceiverOptions.size === 0) {
+        label.textContent = 'All Receivers';
+    } else {
+        label.textContent = `${bookingReceiverOptions.size} Selected`;
+    }
+
+    renderBookingTable();
+}
+
+function populateBookingReceiverFilter() {
+    const dropdown = document.getElementById('bookingReceiverDropdown');
+    dropdown.innerHTML = ''; // Clear existing
+
+    if (!globalBookingData || globalBookingData.length === 0) return;
+
+    // Extract Unique Receivers (Claim Receiver or person)
+    // Note: globalBookingData has 'person' mapped from partsMap in loadTableData
+    const receivers = new Set();
+    globalBookingData.forEach(row => {
+        const p = row['person'] || row['Claim Receiver'];
+        if (p) receivers.add(String(p).trim());
+    });
+
+    const sortedReceivers = Array.from(receivers).sort();
+
+    if (sortedReceivers.length === 0) {
+        dropdown.innerHTML = '<div style="padding:0.5rem; color:#64748b; font-size:0.875rem;">No receivers found</div>';
+        return;
+    }
+
+    sortedReceivers.forEach(receiver => {
+        const div = document.createElement('div');
+        div.style.padding = '0.25rem 0';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = receiver;
+        checkbox.className = 'receiver-checkbox';
+        checkbox.style.marginRight = '0.5rem';
+        // Maintain selection if re-populating (though re-populating wipes selections usually)
+        if (bookingReceiverOptions.has(receiver)) {
+            checkbox.checked = true;
+        }
+        checkbox.onchange = handleReceiverCheckboxChange;
+
+        const label = document.createElement('label');
+        label.textContent = receiver;
+        label.style.fontSize = '0.875rem';
+        label.style.cursor = 'pointer';
+        label.onclick = () => checkbox.click(); // Label clicks checkbox
+
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        dropdown.appendChild(div);
+    });
+}
+
+// Close Dropdown when clicking outside
+window.addEventListener('click', function (e) {
+    const dropdown = document.getElementById('bookingReceiverDropdown');
+    const button = document.querySelector('button[onclick="toggleReceiverDropdown()"]');
+    if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
 
 function populateBookingFilter() {
     const filterSelect = document.getElementById('bookingPartFilter');
@@ -1464,6 +1886,8 @@ function populateBookingFilter() {
         option.textContent = part;
         filterSelect.appendChild(option);
     });
+
+    populateBookingReceiverFilter(); // Call Receiver Filter Population
 }
 
 function renderBookingTable() {
@@ -1478,8 +1902,45 @@ function renderBookingTable() {
 
     // FILTERING
     let filteredData = globalBookingData;
+
+    // 1. Plant Filter (Show ONLY current user's plant for outgoing bookings)
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userPlant = currentUser['Plant'] ? currentUser['Plant'].toString().trim().padStart(4, '0') : null;
+
+    if (userPlant) {
+        filteredData = filteredData.filter(row => {
+            const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
+            return rowPlant === userPlant;
+        });
+    }
+
+    // 2. Status Filter: SHOW 'Local Stock' OR 'In Transit'
+    // Exclude: 'Claim Sent' OR 'Received'
+    filteredData = filteredData.filter(item => {
+        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        // Received at Central (Recripte exists) -> Exclude (Moves to Supplier Tab)
+        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+
+        if (hasClaimSup) return false;
+        if (hasRecripte) return false;
+
+        // Remaining:
+        // 1. No Booking Slip = Local Stock
+        // 2. Has Booking Slip + No Recripte = In Transit
+        return true;
+    });
+
+    // 2. Part Name Filter
     if (filterValue) {
-        filteredData = globalBookingData.filter(row => row['Spare Part Name'] === filterValue);
+        filteredData = filteredData.filter(row => row['Spare Part Name'] === filterValue);
+    }
+
+    // 3. Multi-Select Receiver Filter
+    if (bookingReceiverOptions.size > 0) {
+        filteredData = filteredData.filter(row => {
+            const val = row['Claim Receiver'] || row['person'] || '';
+            return bookingReceiverOptions.has(String(val).trim());
+        });
     }
 
     // Sort Data (Strict Match with processBookingAction)
@@ -1488,6 +1949,9 @@ function renderBookingTable() {
         const nameB = b['Spare Part Name'] || '';
         return nameA.localeCompare(nameB, 'th');
     });
+
+    // Populate Global Displayed Data (Filtered & Sorted)
+    currentBookingDisplayedData = sortedData;
 
     // Calculate Group Totals
     const groupTotals = sortedData.reduce((acc, item) => {
@@ -1509,9 +1973,42 @@ function renderBookingTable() {
         tableHeader.appendChild(th);
     });
 
+    // Check Select All State (Data Driven)
+    const selectAllCheckbox = document.getElementById('selectAllBooking');
+    if (selectAllCheckbox) {
+        let allEnabledSelected = true;
+        let anySelected = false;
+        let hasOneEnabled = false;
+
+        currentBookingDisplayedData.forEach(row => {
+            const hasBookingSlip = row['Booking Slip'] && String(row['Booking Slip']).trim() !== '';
+            const hasRecripte = row['Recripte'] && String(row['Recripte']).trim() !== '';
+            if (!hasBookingSlip && !hasRecripte) {
+                hasOneEnabled = true;
+                const key = getBookingKey(row);
+                if (!selectedBookingKeys.has(key)) {
+                    allEnabledSelected = false;
+                } else {
+                    anySelected = true;
+                }
+            }
+        });
+
+        if (hasOneEnabled && allEnabledSelected) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (anySelected) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    }
+
     // Pagination Logic
-    const startIndex = (currentBookingPage - 1) * ITEMS_PER_PAGE_BOOKING;
-    const endIndex = startIndex + ITEMS_PER_PAGE_BOOKING;
+    const startIndex = (currentBookingPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageData = sortedData.slice(startIndex, endIndex);
 
     // Rows
@@ -1562,22 +2059,29 @@ function renderBookingTable() {
             if (col.key === 'checkbox') {
                 // Adjust index for value to match global index in sortedData
                 const globalIndex = startIndex + index;
-                // Disable if Booking Slip exists
+                // Disable if Booking Slip exists OR Recripte exists
                 const hasBookingSlip = row['Booking Slip'] && String(row['Booking Slip']).trim() !== '';
-                const disabledAttr = hasBookingSlip ? 'disabled' : '';
+                const hasRecripte = row['Recripte'] && String(row['Recripte']).trim() !== '';
+                const disabledAttr = (hasBookingSlip || hasRecripte) ? 'disabled' : '';
 
-                // Check for Poom and Not
-                const receiver = (row['Claim Receiver'] || row.person || '').toLowerCase();
-                const isPoom = receiver.includes('poom');
-                const isNot = receiver.includes('not');
+                // Key for selection
+                const key = getBookingKey(row);
+                const isChecked = selectedBookingKeys.has(key) ? 'checked' : '';
 
-                td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${globalIndex}" data-is-poom="${isPoom}" data-is-not="${isNot}" onchange="handleBookingCheckboxChange()" ${disabledAttr}>`;
+                // We encode Key in the value for easy lookup, or use handleBookingCheckboxChange(this) to access value
+                td.innerHTML = `<input type="checkbox" class="booking-checkbox" value="${key}" onchange="handleBookingCheckboxChange(this)" ${disabledAttr} ${isChecked}>`;
                 td.style.textAlign = 'center';
                 tr.appendChild(td);
                 return;
             }
 
             let value = row[col.key] || '';
+
+            if (col.key === 'CustomStatus') {
+                td.innerHTML = getComputedStatus(row);
+                tr.appendChild(td);
+                return;
+            }
 
             // Format Timestamp
             if (col.key === 'Timestamp' && value) {
@@ -1599,12 +2103,21 @@ function renderBookingTable() {
             }
 
             // Format Mobile Number
-            if (col.key === 'Mobile' && value) {
-                value = formatPhoneNumber(value);
+            if (col.key === 'Mobile') {
+                if (value) {
+                    value = formatPhoneNumber(value);
+                } else {
+                    // Make clickable if empty
+                    td.style.cursor = 'pointer';
+                    td.style.color = '#3b82f6'; // Blue-500
+                    td.innerText = '[Add]';
+                    td.style.fontSize = '0.8em';
+                    td.onclick = () => openMobileModal(row);
+                }
             }
 
             // Booking Slip Click Action
-            if (col.key === 'Booking Slip') {
+            if (col.key === 'Booking Slip' && value && String(value).trim() !== '') {
                 td.style.cursor = 'pointer';
                 td.style.color = 'var(--primary-color)';
                 td.style.fontWeight = '500';
@@ -1658,86 +2171,12 @@ function renderBookingTable() {
     });
 
     // Render Pagination Controls
-    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE_BOOKING);
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
     if (currentBookingPage > totalPages) currentBookingPage = 1;
     renderBookingPagination(totalPages);
-}
 
-function handleBookingCheckboxChange() {
-    const allCheckboxes = document.querySelectorAll('.booking-checkbox');
-    const checkedCheckboxes = document.querySelectorAll('.booking-checkbox:checked');
-    const selectAllCheckbox = document.getElementById('selectAllBooking');
-    const sendNavaBtn = document.querySelector('button[onclick="sendToNavaNakorn()"]');
-    const sendVibhavadiBtn = document.querySelector('button[onclick="sendToVibhavadi()"]');
-    const bulkActions = document.getElementById('bookingBulkActions');
-
-    // Update Select All Header State
-    if (allCheckboxes.length > 0) {
-        if (checkedCheckboxes.length === allCheckboxes.length && allCheckboxes.length > 0) {
-            selectAllCheckbox.checked = true;
-            selectAllCheckbox.indeterminate = false;
-        } else if (checkedCheckboxes.length > 0) {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = true;
-        } else {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = false;
-        }
-    }
-
-    // Validation Flags
-    let hasNot = false;
-    let hasPoom = false;
-    let hasNonPoom = false;
-
-    checkedCheckboxes.forEach(cb => {
-        if (cb.dataset.isNot === 'true') hasNot = true;
-
-        if (cb.dataset.isPoom === 'true') {
-            hasPoom = true;
-        } else {
-            hasNonPoom = true; // Selected item that is NOT Poom
-        }
-    });
-
-    // 1. "Not" Logic: removed strict hiding. Treats "Not" as "Non-Poom" (Standard).
-    if (bulkActions) {
-        if (checkedCheckboxes.length > 0) {
-            bulkActions.style.display = 'flex';
-        } else {
-            bulkActions.style.display = 'none';
-        }
-    }
-
-    // 2. Nava Nakorn Button Logic: Block if "Poom" is selected
-    if (sendNavaBtn) {
-        if (hasPoom) {
-            sendNavaBtn.disabled = true;
-            sendNavaBtn.style.opacity = '0.5';
-            sendNavaBtn.style.cursor = 'not-allowed';
-            sendNavaBtn.title = 'Items assigned to "Poom" cannot be sent to Nava Nakorn.';
-        } else {
-            sendNavaBtn.disabled = false;
-            sendNavaBtn.style.opacity = '1';
-            sendNavaBtn.style.cursor = 'pointer';
-            sendNavaBtn.title = '';
-        }
-    }
-
-    // 3. Vibhavadi Button Logic: Block if "Non-Poom" is selected (Strict Poom Only)
-    if (sendVibhavadiBtn) {
-        if (hasNonPoom) {
-            sendVibhavadiBtn.disabled = true;
-            sendVibhavadiBtn.style.opacity = '0.5';
-            sendVibhavadiBtn.style.cursor = 'not-allowed';
-            sendVibhavadiBtn.title = 'Only items assigned to "Poom" can be sent to Vibhavadi.';
-        } else {
-            sendVibhavadiBtn.disabled = false;
-            sendVibhavadiBtn.style.opacity = '1';
-            sendVibhavadiBtn.style.cursor = 'pointer';
-            sendVibhavadiBtn.title = '';
-        }
-    }
+    // Call update action buttons to ensure correct state after render
+    updateBookingActionButtons();
 }
 
 function renderBookingPagination(totalPages) {
@@ -1906,7 +2345,7 @@ async function openClaimReceiverModal(item) {
     const currentReceiver = item['Claim Receiver'] || '';
 
     // Create HTML for buttons
-    const receiverOptions = ['Mai', 'Mon', 'Poom'];
+    const receiverOptions = ['Mai', 'Mon', 'Poom', 'Not'];
     let buttonsHtml = '<div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">';
 
     receiverOptions.forEach(opt => {
@@ -1915,6 +2354,7 @@ async function openClaimReceiverModal(item) {
         if (opt === 'Mai') { btnColor = '#dbeafe'; txtColor = '#1e40af'; }
         if (opt === 'Mon') { btnColor = '#dcfce7'; txtColor = '#166534'; }
         if (opt === 'Poom') { btnColor = '#fae8ff'; txtColor = '#6b21a8'; }
+        if (opt === 'Not') { btnColor = '#ffedd5'; txtColor = '#c2410c'; } // Orange/Amber
         if (opt === 'Clear') { btnColor = '#fee2e2'; txtColor = '#991b1b'; } // Redish for clear
 
         // Check if currently selected (highlight border?)
@@ -1990,6 +2430,235 @@ async function updateClaimReceiver(item, newReceiver) {
     } catch (error) {
         console.error('Error updating receiver:', error);
         Swal.fire('Error', 'Failed to update receiver', 'error');
+    }
+}
+
+async function openMobileModal(item) {
+    const { value: newMobile } = await Swal.fire({
+        title: 'เพิ่มเบอร์โทรศัพท์ (Add Mobile)',
+        input: 'tel',
+        inputLabel: 'Phone Number',
+        inputPlaceholder: 'Enter phone number...',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก (Save)',
+        cancelButtonText: 'ยกเลิก',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'You need to write something!';
+            }
+        }
+    });
+
+    if (newMobile) {
+        updateMobile(item, newMobile);
+    }
+}
+
+async function updateMobile(item, newMobile) {
+    Swal.fire({
+        title: 'Updating...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const payload = {
+        ...item,
+        'Mobile': newMobile,
+    };
+
+    try {
+        await fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // Optimistic UI Update
+        item['Mobile'] = newMobile;
+        renderBookingTable(); // Re-render DOM to show new number
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Updated',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+    } catch (error) {
+        console.error('Error updating mobile:', error);
+        Swal.fire('Error', 'Failed to update mobile', 'error');
+    }
+}
+
+// ==========================================
+// NEW: Main Table Person/Mobile Modal Logic
+// ==========================================
+
+async function openMainPersonModal(item) {
+    const currentReceiver = item.person || '';
+
+    // Create HTML for buttons (reuse style from openClaimReceiverModal)
+    const receiverOptions = ['Mai', 'Mon', 'Poom', 'Not'];
+    let buttonsHtml = '<div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">';
+
+    receiverOptions.forEach(opt => {
+        let btnColor = '#f1f5f9';
+        let txtColor = '#64748b';
+        if (opt === 'Mai') { btnColor = '#dbeafe'; txtColor = '#1e40af'; }
+        if (opt === 'Mon') { btnColor = '#dcfce7'; txtColor = '#166534'; }
+        if (opt === 'Poom') { btnColor = '#fae8ff'; txtColor = '#6b21a8'; }
+        if (opt === 'Not') { btnColor = '#ffedd5'; txtColor = '#c2410c'; }
+
+        const isSelected = (currentReceiver.toLowerCase() === opt.toLowerCase());
+        const borderStyle = isSelected ? '2px solid var(--primary-color)' : '1px solid transparent';
+
+        buttonsHtml += `
+            <button type="button" class="swal2-confirm swal2-styled"
+                style="background-color: ${btnColor}; color: ${txtColor}; border: ${borderStyle}; margin: 5px; flex: 1 0 40%;"
+                onclick="window.selectedMainPerson = '${opt}'; 
+                         document.querySelectorAll('.receiver-opt-btn').forEach(b => b.style.border='1px solid transparent'); 
+                         this.style.border='2px solid var(--primary-color)';"
+                class="receiver-opt-btn">
+                ${opt}
+            </button>
+        `;
+    });
+    buttonsHtml += '</div>';
+
+    window.selectedMainPerson = currentReceiver; // Default
+
+    const result = await Swal.fire({
+        title: 'Select Person (Claim Receiver)',
+        html: buttonsHtml,
+        showCancelButton: true,
+        confirmButtonText: 'Save',
+        cancelButtonText: 'Cancel',
+        preConfirm: () => {
+            return window.selectedMainPerson;
+        }
+    });
+
+    if (result.isConfirmed) {
+        const newPerson = result.value;
+        if (newPerson && newPerson !== currentReceiver) {
+            saveMainPerson(item, newPerson);
+        }
+    }
+}
+
+async function saveMainPerson(item, newPerson) {
+    Swal.fire({
+        title: 'Saving...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    // Construct Payload similar to sendDatatoGAS but minimal/targeted
+    // Note: We need to send enough data for GAS to identify the row and update it.
+    // GAS script usually needs 'work order' and 'Spare Part Code' (or unique key) + 'operation' or 'user' etc.
+    // Re-using the Standard Payload structure ensures best compatibility.
+
+    const payload = {
+        ...item.scrap,
+        ...item.fullRow,
+        'user': currentUser.IDRec || 'Unknown',
+        'ActionStatus': item.status || item.fullRow['ActionStatus'] || 'เคลมประกัน',
+        'Claim Receiver': newPerson, // The value to update
+        'Person': newPerson // Ensure mapping
+    };
+    delete payload['Values'];
+
+    try {
+        await fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // Optimistic Update
+        item.person = newPerson;
+
+        // Also update fullRow if it maps there
+        if (item.fullRow) item.fullRow['Claim Receiver'] = newPerson;
+
+        renderTable();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Saved',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Error', 'Failed to save person', 'error');
+    }
+}
+
+async function openMainMobileModal(item) {
+    const currentMobile = item.technicianPhone || '';
+
+    const { value: newMobile } = await Swal.fire({
+        title: 'Edit Mobile Number',
+        input: 'tel',
+        inputValue: currentMobile,
+        inputLabel: 'Phone Number',
+        inputPlaceholder: 'Enter phone number...',
+        showCancelButton: true,
+        confirmButtonText: 'Save',
+        cancelButtonText: 'Cancel'
+    });
+
+    if (newMobile !== undefined && newMobile !== currentMobile) {
+        saveMainMobile(item, newMobile);
+    }
+}
+
+async function saveMainMobile(item, newMobile) {
+    Swal.fire({
+        title: 'Saving...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    const payload = {
+        ...item.scrap,
+        ...item.fullRow,
+        'user': currentUser.IDRec || 'Unknown',
+        'ActionStatus': item.status || item.fullRow['ActionStatus'] || 'เคลมประกัน',
+        'Phone': newMobile
+    };
+    delete payload['Values'];
+
+    try {
+        await fetch(GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        // Optimistic Update
+        item.technicianPhone = newMobile;
+        renderTable();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Saved',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Error', 'Failed to save mobile', 'error');
     }
 }
 
@@ -2247,13 +2916,30 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
                 // VALUE should be index in detailData to identify it
                 // We add a data attribute to the checkbox to find the row or data later? 
                 // Or just keep using value as index. But we need to know WHICH detailData it refers to?
-                // Actually, renderTopLevelDetailTable sets 'currentDetailContext'.
-                // If we have multiple tables open (e.g. one in hidden tab), 'currentDetailContext' might be overwritten if not careful.
-                // But toggleDetailView sets/clears it. Switching tabs doesn't clear it.
                 // Ideally, we should store the context ON the DOM element (the table or wrapper).
                 // For now, let's assume one active context. But the ID conflict was the main issue.
-                td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${index}" onchange="handleReviewCheckboxChange(this)">`;
+
+                // Disable if Booking Slip exists OR Recripte exists
+                // Note: item['Booking Slip'] should match 'slip' from context, so implicitly it exists if we are here?
+                // Wait, 'slip' from context is the grouping key. 
+                // BUT the requirement is: "Tab Booking Slip Navanakhon ... table that shows when card is pressed -> Checkbox not work when Recripte has data"
+                // AND previously "Booking Slip" (Car Reservation) has data.
+                // In this view, they are grouped BY Booking Slip, so they ALL have Booking Slip data.
+                // So technically, ALL checkboxes should be disabled if we follow "Booking Slip" rule strictly?
+                // The user said: "Tab ... Table that shows when card is pressed ... give Checkbox NOT work when column 'Booking Slip' has data".
+                // Since this IS the table for a specific Booking Slip, yes, they all have it.
+                // However, maybe the user wants to disable it ONLY if it's already "Processed" or something further?
+                // But let's follow the user's literal request.
+                // AND now "Recripte" has data.
+
+                const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
+                const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+                const disabledAttr = (hasBookingSlip || hasRecripte) ? 'disabled' : '';
+
+                td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr}>`;
                 td.style.textAlign = 'center';
+            } else if (col.key === 'CustomStatus') {
+                td.innerHTML = getComputedStatus(item);
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 // Make Work Order and Serial Number clickable
                 td.textContent = value;
@@ -2350,7 +3036,7 @@ async function saveBulkReviewItems(btnElement) {
 
     Swal.fire({
         title: 'Saving...',
-        html: `Updating ${selectedItems.length} items...`,
+        html: `Updating <b>1</b> / ${selectedItems.length} items...`,
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
     });
@@ -2360,6 +3046,11 @@ async function saveBulkReviewItems(btnElement) {
 
     for (let i = 0; i < selectedItems.length; i++) {
         const item = selectedItems[i];
+
+        // Update Progress
+        if (Swal.getHtmlContainer()) {
+            Swal.getHtmlContainer().innerHTML = `Updating <b>${i + 1}</b> / ${selectedItems.length} items...`;
+        }
 
         // Payload
         const payload = {
@@ -2528,14 +3219,177 @@ function selectWorkOrderAction(element, action) {
     document.getElementById('woDetail_ActionValue').value = action;
 }
 
+
+
+
+
+
+
+
+
+function populateSupplierProductFilter(data) {
+    const dropdown = document.getElementById('supplierProductDropdown');
+    if (!dropdown) return;
+
+    // Unique Products from provided data (or globalBookingData if not provided)
+    // We want to show ALL products available in the Supplier view (filtered by Recripte)
+    let sourceData = data;
+    if (!sourceData) {
+        sourceData = globalBookingData.filter(item => item['Recripte'] && item['Recripte'].trim() !== '');
+    }
+
+    const uniqueProducts = new Set();
+    sourceData.forEach(item => {
+        if (item['Product']) uniqueProducts.add(item['Product']);
+    });
+
+    // Also include any currently selected options to avoid them disappearing if filtered out?
+    // Actually, usually filters show what's available. 
+    // But if we use 'data' which is ALREADY filtered, options disappear.
+    // So we should use the BASE supplier data (globalBookingData filtered by Recripte).
+
+    // Sorted Array
+    const sortedProducts = Array.from(uniqueProducts).sort();
+
+    // Preserve Current Selection State
+    // If options change, we might need to cleanup selection? Or keep it?
+    // Let's keep it.
+
+    dropdown.innerHTML = '';
+
+    sortedProducts.forEach(prod => {
+        const div = document.createElement('div');
+        div.style.padding = '0.25rem 0.5rem';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.gap = '0.5rem';
+        div.style.cursor = 'pointer';
+        div.className = 'hover:bg-gray-100'; // Tailwind syntax if available, else style
+        div.onmouseover = function () { this.style.backgroundColor = '#f3f4f6'; };
+        div.onmouseout = function () { this.style.backgroundColor = 'transparent'; };
+
+        const isChecked = supplierProductOptions.has(prod) ? 'checked' : '';
+
+        div.innerHTML = `
+            <input type="checkbox" class="supplier-product-checkbox" value="${prod}" ${isChecked} onchange="handleSupplierProductCheckboxChange()">
+            <span onclick="this.previousElementSibling.click();" style="flex:1;">${prod}</span>
+        `;
+        dropdown.appendChild(div);
+    });
+}
+
+function toggleSupplierProductDropdown() {
+    const dropdown = document.getElementById('supplierProductDropdown');
+    if (dropdown) {
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function handleSupplierProductCheckboxChange() {
+    supplierProductOptions.clear();
+    const checkboxes = document.querySelectorAll('.supplier-product-checkbox:checked');
+    checkboxes.forEach(cb => {
+        supplierProductOptions.add(cb.value);
+    });
+
+    // Update Label
+    const label = document.getElementById('supplierProductFilterLabel');
+    if (label) {
+        if (supplierProductOptions.size === 0) {
+            label.textContent = 'All Products';
+        } else {
+            label.textContent = `Selected (${supplierProductOptions.size})`;
+        }
+    }
+
+    renderSupplierTable();
+}
+
+// Close Dropdown on Click Outside
+window.addEventListener('click', function (e) {
+    const dropdown = document.getElementById('supplierProductDropdown');
+    const button = document.querySelector('button[onclick="toggleSupplierProductDropdown()"]');
+    if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
+
+
+
+function populateSupplierFilter() {
+    console.log("--- populateSupplierFilter called ---");
+    const filterSelect = document.getElementById('supplierPartFilter');
+    if (!filterSelect) return;
+
+    // Filter Data: Items relevant for Supplier Tab (Has Recripte)
+    let supplierItems = globalBookingData.filter(item => {
+        return item['Recripte'] && String(item['Recripte']).trim() !== '';
+    });
+    console.log(`[DEBUG] populateSupplierFilter: ${supplierItems.length} supplier items found.`);
+    if (supplierItems.length > 0) console.log('[DEBUG] First supplier item Product:', supplierItems[0]['Product']);
+
+    // 1. Populate Part Filter
+    const parts = new Set();
+    supplierItems.forEach(item => {
+        const name = item['Spare Part Name'];
+        if (name) parts.add(name);
+    });
+
+    const sortedParts = Array.from(parts).sort();
+
+    // Save current selection
+    const currentPart = filterSelect.value;
+
+    filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+    sortedParts.forEach(part => {
+        const option = document.createElement('option');
+        option.value = part;
+        option.textContent = part;
+        if (part === currentPart) option.selected = true;
+        filterSelect.appendChild(option);
+    });
+
+
+
+    // 2. Populate Product Filter
+    populateSupplierProductFilter(supplierItems);
+}
+
 function renderSupplierTable() {
+    console.log("--- renderSupplierTable called ---");
     const tableHeader = document.getElementById('supplierTableHeader');
     const tableBody = document.getElementById('supplierTableBody');
 
     // Filter Data: Items with 'Recripte'
-    const supplierData = globalBookingData.filter(item => {
+    const filterSelect = document.getElementById('supplierPartFilter');
+    const filterValue = filterSelect ? filterSelect.value : '';
+
+    let supplierData = globalBookingData.filter(item => {
         return item['Recripte'] && item['Recripte'].trim() !== '';
     });
+
+    // Populate Product Filter Options (using base supplier data)
+    // Only populate if not already populated? To prevent re-rendering dropdown while open.
+    // Ideally we check if dropdown is empty.
+    const dropdown = document.getElementById('supplierProductDropdown');
+    if (dropdown && dropdown.children.length === 0) {
+        populateSupplierProductFilter(supplierData);
+    }
+    // Alternatively, update counts? For now just ensure it's populated.
+    // If we want it to update dynamically based on other filters, we would pass filtered data.
+    // User asked for "add filter", usually implies standard filter behavior.
+
+    // Apply Product Filter
+    if (supplierProductOptions.size > 0) {
+        supplierData = supplierData.filter(item => supplierProductOptions.has(item['Product']));
+    }
+
+
+
+    if (filterValue) {
+        supplierData = supplierData.filter(item => item['Spare Part Name'] === filterValue);
+    }
+
 
     // Sort Data: Primary = Spare Part Name (Asc), Secondary = Booking Date (Desc)
     const sortedData = [...supplierData].reverse().sort((a, b) => {
@@ -2555,7 +3409,7 @@ function renderSupplierTable() {
 
     // Headers
     tableHeader.innerHTML = '';
-    BOOKING_COLUMNS.forEach(col => {
+    SUPPLIER_COLUMNS.forEach(col => {
         const th = document.createElement('th');
         if (col.header.includes('<')) {
             th.innerHTML = col.header;
@@ -2566,15 +3420,15 @@ function renderSupplierTable() {
     });
 
     // Pagination Logic
-    const startIndex = (currentBookingPage - 1) * ITEMS_PER_PAGE_BOOKING;
-    const endIndex = startIndex + ITEMS_PER_PAGE_BOOKING;
+    const startIndex = (currentSupplierPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageData = sortedData.slice(startIndex, endIndex);
 
     tableBody.innerHTML = '';
 
     // Track previous item for Grouping (handle pagination boundary)
     let previousPartName = null;
-    if (currentBookingPage > 1 && sortedData[startIndex - 1]) {
+    if (currentSupplierPage > 1 && sortedData[startIndex - 1]) {
         previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
     }
 
@@ -2590,7 +3444,7 @@ function renderSupplierTable() {
             headerRow.style.fontWeight = 'bold';
 
             const headerCell = document.createElement('td');
-            headerCell.colSpan = BOOKING_COLUMNS.length;
+            headerCell.colSpan = SUPPLIER_COLUMNS.length;
             headerCell.style.padding = '12px';
             headerCell.style.borderTop = '2px solid #e2e8f0';
             headerCell.style.color = '#334155';
@@ -2611,13 +3465,23 @@ function renderSupplierTable() {
         }
 
         const tr = document.createElement('tr');
-        BOOKING_COLUMNS.forEach(col => {
+        SUPPLIER_COLUMNS.forEach(col => {
             const td = document.createElement('td');
             let value = item[col.key] || '';
 
             if (col.key === 'checkbox') {
-                td.innerHTML = '<input type="checkbox" disabled>';
+                const globalIndex = startIndex + index;
+                // Disable if ClaimSup has data
+                const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+                const disabledAttr = isClaimed ? 'disabled' : '';
+
+                td.innerHTML = `<input type="checkbox" class="supplier-checkbox" value="${globalIndex}" ${disabledAttr} onchange="handleSupplierCheckboxChange()">`;
                 td.style.textAlign = 'center';
+                if (isClaimed) {
+                    td.style.opacity = '0.5'; // Visual cue
+                }
+            } else if (col.key === 'CustomStatus') {
+                td.innerHTML = getComputedStatus(item);
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
                 td.style.cursor = 'pointer';
@@ -2629,10 +3493,407 @@ function renderSupplierTable() {
                 };
             } else {
                 // Date formatting
-                if ((col.key === 'Timestamp' || col.key === 'RecripteDate') && value) {
+                if ((col.key === 'Timestamp' || col.key === 'RecripteDate' || col.key === 'Claim Date') && value) {
                     const date = new Date(value);
-                    if (!isNaN(date.getTime()) && value.includes && value.includes('T')) {
-                        value = date.toLocaleString();
+                    // Simple check if it looks like a date object string or ISO
+                    if (!isNaN(date.getTime()) && String(value).length > 10) {
+                        // Check length to avoid "DD/MM/YYYY" being parsed as valid date in some browsers if not careful, 
+                        // but usually "DD/MM/YYYY" parsing is quirky. 
+                        // If we saved it as DD/MM/YYYY string, we should just show it?
+                        // Our previous code saved 'RecripteDate' as LocaleString.
+                        // Let's just trust textContent mostly unless it's ISO.
+                        if (String(value).includes('T')) {
+                            value = date.toLocaleString('en-GB');
+                        }
+                    }
+                }
+                // If value is manually formatted DD/MM/YYYY, leave it.
+                if (col.key === 'Booking Date' && value) {
+                    let s = String(value);
+                    if (s.indexOf('T') > -1) s = s.split('T')[0];
+                    if (s.indexOf(' ') > -1) s = s.split(' ')[0];
+                    value = s;
+                }
+                td.textContent = value;
+            }
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+
+    // Render Pagination Controls
+    console.log(`Rendering Supplier Pagination. Total Data: ${sortedData.length}, Items/Page: ${ITEMS_PER_PAGE}`);
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    console.log(`Calculated Total Pages: ${totalPages}, Current Page: ${currentSupplierPage}`);
+
+    if (currentSupplierPage > totalPages) currentSupplierPage = 1;
+    renderSupplierPagination(totalPages);
+}
+
+function handleSupplierCheckboxChange() {
+    const checkboxes = document.querySelectorAll('.supplier-checkbox:checked');
+    const bulkActions = document.getElementById('supplierBulkActions');
+    const selectAll = document.getElementById('selectAllSupplier');
+
+    // Update Select All Header
+    const allCheckboxes = document.querySelectorAll('.supplier-checkbox');
+    if (allCheckboxes.length > 0) {
+        if (checkboxes.length === allCheckboxes.length) {
+            selectAll.checked = true;
+            selectAll.indeterminate = false;
+        } else if (checkboxes.length > 0) {
+            selectAll.checked = false;
+            selectAll.indeterminate = true;
+        } else {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+    }
+
+    if (checkboxes.length > 0) {
+        bulkActions.style.display = 'flex';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+function toggleAllSupplierCheckboxes(source) {
+    const checkboxes = document.querySelectorAll('.supplier-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+    handleSupplierCheckboxChange();
+}
+
+function populateSupplierFilter() {
+    const filterSelect = document.getElementById('supplierPartFilter');
+    filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+
+    // Filter Data: Items with 'Recripte'
+    const supplierData = globalBookingData.filter(item => {
+        return item['Recripte'] && item['Recripte'].trim() !== '';
+    });
+
+    populateSupplierProductFilter(supplierData); // Populate Product Filter when Part Filter is populated
+
+    const uniqueParts = [...new Set(supplierData.map(item => item['Spare Part Name']).filter(Boolean))].sort();
+
+    uniqueParts.forEach(part => {
+        const option = document.createElement('option');
+        option.value = part;
+        option.textContent = part;
+        filterSelect.appendChild(option);
+    });
+}
+
+
+async function sendClaim() {
+    const checkboxes = document.querySelectorAll('.supplier-checkbox:checked');
+    if (checkboxes.length === 0) return;
+
+    // Filter logic to get data based on search/sort
+    // We must mirror logic in renderSupplierTable to map indices correctly
+    const filterSelect = document.getElementById('supplierPartFilter');
+    const filterValue = filterSelect ? filterSelect.value : '';
+
+    // Filter Data: Items with 'Recripte'
+    let allowedData = globalBookingData.filter(item => {
+        return item['Recripte'] && item['Recripte'].trim() !== '';
+    });
+
+    // Product Filter (Must match renderSupplierTable)
+    if (supplierProductOptions.size > 0) {
+        allowedData = allowedData.filter(item => supplierProductOptions.has(item['Product']));
+    }
+
+    // UI Filter (Spare Part)
+    if (filterValue) {
+        allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
+    }
+
+    // Sort Data: Primary = Spare Part Name (Asc), Secondary = Booking Date (Desc) - matches render
+    const sortedData = [...allowedData].reverse().sort((a, b) => {
+        const nameA = a['Spare Part Name'] || '';
+        const nameB = b['Spare Part Name'] || '';
+        return nameA.localeCompare(nameB, 'th');
+    });
+
+    // Gather Items
+    const selectedItems = [];
+    checkboxes.forEach(cb => {
+        const idx = parseInt(cb.value);
+        if (sortedData[idx]) {
+            selectedItems.push(sortedData[idx]);
+        }
+    });
+
+    if (selectedItems.length === 0) return;
+
+    // Auto-fill logic (No Prompt)
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const claimSup = currentUser.IDRec || 'Unknown';
+
+    // Date = Today (DD/MM/YYYY)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const formattedDate = `${day}/${month}/${year}`;
+
+    // Confirm Action
+    const result = await Swal.fire({
+        title: 'Confirm Send Claim?',
+        html: `Update <b>${selectedItems.length}</b> items?<br><br>Date: <b>${formattedDate}</b><br>Supplier: <b>${claimSup}</b>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Send',
+        cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+        title: 'Saving...',
+        html: `Updating ${selectedItems.length} items...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+
+        const payload = {
+            ...item,
+            'Claim Date': formattedDate,
+            'ClaimSup': claimSup,
+            'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown'
+        };
+
+        try {
+            await fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // Update Local
+            item['Claim Date'] = formattedDate;
+            item['ClaimSup'] = claimSup;
+            successCount++;
+        } catch (e) {
+            console.error(e);
+            failCount++;
+        }
+    }
+
+    renderSupplierTable();
+    handleSupplierCheckboxChange(); // Updated UI state
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Completed',
+        text: `Success: ${successCount}, Failed: ${failCount}`,
+    });
+
+}
+
+function renderSupplierPagination(totalPages) {
+    console.log(`renderSupplierPagination called with totalPages: ${totalPages}`);
+    const container = document.getElementById('supplierPaginationControls');
+    console.log("Container found:", container);
+
+    if (!container) {
+        console.error("Pagination container #supplierPaginationControls NOT found!");
+        return;
+    }
+    container.style.display = 'flex'; // Force display
+    container.innerHTML = '';
+
+    // if (totalPages <= 1) return; // Force show for user feedback
+
+    const createButton = (text, onClick, disabled = false, isActive = false) => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.onclick = onClick;
+        btn.disabled = disabled;
+        if (isActive) btn.classList.add('active');
+        return btn;
+    };
+
+    // << First
+    container.appendChild(createButton('<<', () => changeSupplierPage(1), currentSupplierPage === 1));
+
+    // < Prev
+    container.appendChild(createButton('<', () => changeSupplierPage(currentSupplierPage - 1), currentSupplierPage === 1));
+
+    // Current Page Number
+    container.appendChild(createButton(currentSupplierPage, () => { }, false, true));
+
+    // > Next
+    container.appendChild(createButton('>', () => changeSupplierPage(currentSupplierPage + 1), currentSupplierPage >= totalPages));
+
+    // >> Last
+    container.appendChild(createButton('>>', () => changeSupplierPage(totalPages), currentSupplierPage >= totalPages));
+}
+
+function changeSupplierPage(newPage) {
+    if (newPage < 1) return;
+    currentSupplierPage = newPage;
+    renderSupplierTable(); // Re-render table with new page
+}
+
+// ==========================================================
+// CLAIM SENT TAB LOGIC
+// ==========================================================
+
+function populateClaimSentFilter() {
+    const filterSelect = document.getElementById('claimSentPartFilter');
+    if (!filterSelect) return;
+
+    // Filter Items: Must have 'Recripte' AND 'ClaimSup'
+    const claimSentItems = globalBookingData.filter(item => {
+        const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
+        const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
+        return hasRecripte && hasClaimSup;
+    });
+
+    const parts = [...new Set(claimSentItems.map(item => item['Spare Part Name']).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+
+    filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+    parts.forEach(part => {
+        const option = document.createElement('option');
+        option.value = part;
+        option.textContent = part;
+        filterSelect.appendChild(option);
+    });
+}
+
+function renderClaimSentTable() {
+    console.log("--- renderClaimSentTable called ---");
+    const tableHeader = document.getElementById('claimSentTableHeader');
+    const tableBody = document.getElementById('claimSentTableBody');
+
+    // Filter Data: 'Recripte' AND 'ClaimSup'
+    const filterSelect = document.getElementById('claimSentPartFilter');
+    const filterValue = filterSelect ? filterSelect.value : '';
+
+    let allowedData = globalBookingData.filter(item => {
+        const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
+        const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
+        return hasRecripte && hasClaimSup;
+    });
+
+    if (filterValue) {
+        allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
+    }
+
+    // Sort Data: Spare Part Name (Asc)
+    const sortedData = [...allowedData].reverse().sort((a, b) => {
+        const nameA = a['Spare Part Name'] || '';
+        const nameB = b['Spare Part Name'] || '';
+        return nameA.localeCompare(nameB, 'th');
+    });
+
+    // Calculate Group Totals
+    const groupTotals = sortedData.reduce((acc, item) => {
+        const name = item['Spare Part Name'] || 'Unknown';
+        const qty = parseFloat(item['Qty']) || 0;
+        acc[name] = (acc[name] || 0) + qty;
+        return acc;
+    }, {});
+
+    // Headers (Same as Supplier)
+    tableHeader.innerHTML = '';
+    SUPPLIER_COLUMNS.forEach(col => {
+        // Skip Checkbox for Sent Claim view (read-only for now)
+        if (col.key === 'checkbox') return;
+
+        const th = document.createElement('th');
+        if (col.header.includes('<')) {
+            th.innerHTML = col.header;
+        } else {
+            th.textContent = col.header;
+        }
+        tableHeader.appendChild(th);
+    });
+
+    // Pagination Logic
+    console.log(`Rendering Claim Sent Pagination. Total Data: ${sortedData.length}`);
+    const startIndex = (currentClaimSentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const pageData = sortedData.slice(startIndex, endIndex);
+
+    tableBody.innerHTML = '';
+
+    // Track previous for grouping
+    let previousPartName = null;
+    if (currentClaimSentPage > 1 && sortedData[startIndex - 1]) {
+        previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
+    }
+
+    pageData.forEach((item, index) => {
+        const currentPartName = item['Spare Part Name'] || 'Unknown';
+        const currentPartCode = item['Spare Part Code'] || '';
+
+        // Group Header
+        if (currentPartName !== previousPartName) {
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'group-header-row';
+            headerRow.style.backgroundColor = '#f8fafc';
+            headerRow.style.fontWeight = 'bold';
+
+            const headerCell = document.createElement('td');
+            headerCell.colSpan = SUPPLIER_COLUMNS.length - 1; // -1 for checkbox
+            headerCell.style.padding = '12px';
+            headerCell.style.borderTop = '2px solid #e2e8f0';
+            headerCell.style.color = '#334155';
+
+            const total = groupTotals[currentPartName] || 0;
+            headerCell.innerHTML = `
+                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <span>📦 ${currentPartName}</span>
+                         <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
+                         <span style="font-size:0.85em; color:#0369a1; font-weight:bold;">(${total.toLocaleString()} Pc)</span>
+                     </div>
+                 </div>
+             `;
+            headerRow.appendChild(headerCell);
+            tableBody.appendChild(headerRow);
+            previousPartName = currentPartName;
+        }
+
+        const tr = document.createElement('tr');
+        SUPPLIER_COLUMNS.forEach(col => {
+            if (col.key === 'checkbox') return; // Skip checkbox
+
+            const td = document.createElement('td');
+            let value = item[col.key] || '';
+
+            if (col.key === 'CustomStatus') {
+                td.innerHTML = getComputedStatus(item);
+                tr.appendChild(td);
+                return;
+            }
+
+            if (col.key === 'Work Order' || col.key === 'Serial Number') {
+                td.textContent = value;
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.textDecoration = 'underline';
+                td.onclick = function (e) {
+                    e.stopPropagation();
+                    openWorkOrderModal(item);
+                };
+            } else {
+                if ((col.key === 'Timestamp' || col.key === 'RecripteDate' || col.key === 'Claim Date') && value) {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime()) && String(value).length > 10) {
+                        if (String(value).includes('T')) {
+                            value = date.toLocaleString('en-GB');
+                        }
                     }
                 }
                 if (col.key === 'Booking Date' && value) {
@@ -2647,4 +3908,178 @@ function renderSupplierTable() {
         });
         tableBody.appendChild(tr);
     });
+
+    // Render Pagination Controls
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    if (currentClaimSentPage > totalPages) currentClaimSentPage = 1;
+    renderClaimSentPagination(totalPages);
+}
+
+function renderClaimSentPagination(totalPages) {
+    const container = document.getElementById('claimSentPaginationControls');
+    if (!container) return;
+
+    container.style.display = 'flex';
+    container.innerHTML = '';
+
+    const createButton = (text, onClick, disabled = false, isActive = false) => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.onclick = onClick;
+        btn.disabled = disabled;
+        if (isActive) btn.classList.add('active');
+        return btn;
+    };
+
+    container.appendChild(createButton('<<', () => changeClaimSentPage(1), currentClaimSentPage === 1));
+    container.appendChild(createButton('<', () => changeClaimSentPage(currentClaimSentPage - 1), currentClaimSentPage === 1));
+    container.appendChild(createButton(currentClaimSentPage, () => { }, false, true));
+    container.appendChild(createButton('>', () => changeClaimSentPage(currentClaimSentPage + 1), currentClaimSentPage >= totalPages));
+    container.appendChild(createButton('>>', () => changeClaimSentPage(totalPages), currentClaimSentPage >= totalPages));
+}
+
+function changeClaimSentPage(newPage) {
+    if (newPage < 1) return;
+    currentClaimSentPage = newPage;
+    renderClaimSentTable();
+}
+
+// ==========================================================
+// CLAIM HISTORY TAB LOGIC
+// ==========================================================
+
+function renderHistoryTable() {
+    console.log("--- renderHistoryTable called ---");
+    const tableHeader = document.getElementById('historyTableHeader');
+    const tableBody = document.getElementById('historyTableBody');
+    const searchInput = document.getElementById('historySearchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // Data Source: Global Booking Data (ALL)
+    let allowedData = globalBookingData;
+
+    // Search Filter
+    if (searchTerm) {
+        allowedData = allowedData.filter(item => {
+            return Object.values(item).some(val =>
+                String(val).toLowerCase().includes(searchTerm)
+            );
+        });
+    }
+
+    // Sort Data: Timestamp Descending (Newest First)
+    // Or Booking Date? Let's use Timestamp if available, or fall back to Booking Date
+    const sortedData = [...allowedData].sort((a, b) => {
+        // Safe Date Parsing helper
+        const parse = (d) => {
+            if (!d) return 0;
+            const t = new Date(d).getTime();
+            return isNaN(t) ? 0 : t;
+        };
+        const timeA = parse(a['Timestamp']);
+        const timeB = parse(b['Timestamp']);
+        return timeB - timeA;
+    });
+
+    // Headers
+    tableHeader.innerHTML = '';
+    SUPPLIER_COLUMNS.forEach(col => {
+        // Skip Checkbox for History (ReadOnly)
+        if (col.key === 'checkbox') return;
+
+        const th = document.createElement('th');
+        if (col.header.includes('<')) {
+            th.innerHTML = col.header;
+        } else {
+            th.textContent = col.header;
+        }
+        tableHeader.appendChild(th);
+    });
+
+    // Pagination Logic
+    console.log(`Rendering History Pagination. Total Data: ${sortedData.length}`);
+    const startIndex = (currentHistoryPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const pageData = sortedData.slice(startIndex, endIndex);
+
+    tableBody.innerHTML = '';
+
+    pageData.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        SUPPLIER_COLUMNS.forEach(col => {
+            if (col.key === 'checkbox') return;
+
+            const td = document.createElement('td');
+            let value = item[col.key] || '';
+
+            if (col.key === 'CustomStatus') {
+                td.innerHTML = getComputedStatus(item);
+                tr.appendChild(td);
+                return;
+            }
+
+            if (col.key === 'Work Order' || col.key === 'Serial Number') {
+                td.textContent = value;
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.textDecoration = 'underline';
+                td.onclick = function (e) {
+                    e.stopPropagation();
+                    openWorkOrderModal(item);
+                };
+            } else {
+                if ((col.key === 'Timestamp' || col.key === 'RecripteDate' || col.key === 'Claim Date') && value) {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime()) && String(value).length > 10) {
+                        if (String(value).includes('T')) {
+                            value = date.toLocaleString('en-GB');
+                        }
+                    }
+                }
+                if (col.key === 'Booking Date' && value) {
+                    let s = String(value);
+                    if (s.indexOf('T') > -1) s = s.split('T')[0];
+                    if (s.indexOf(' ') > -1) s = s.split(' ')[0];
+                    value = s;
+                }
+                td.textContent = value;
+            }
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+
+    // Render Pagination Controls
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    if (currentHistoryPage > totalPages) currentHistoryPage = 1;
+    renderHistoryPagination(totalPages);
+}
+
+function renderHistoryPagination(totalPages) {
+    const container = document.getElementById('historyPaginationControls');
+    if (!container) return;
+
+    container.style.display = 'flex';
+    container.innerHTML = '';
+
+    const createButton = (text, onClick, disabled = false, isActive = false) => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.onclick = onClick;
+        btn.disabled = disabled;
+        if (isActive) btn.classList.add('active');
+        return btn;
+    };
+
+    container.appendChild(createButton('<<', () => changeHistoryPage(1), currentHistoryPage === 1));
+    container.appendChild(createButton('<', () => changeHistoryPage(currentHistoryPage - 1), currentHistoryPage === 1));
+    container.appendChild(createButton(currentHistoryPage, () => { }, false, true));
+    container.appendChild(createButton('>', () => changeHistoryPage(currentHistoryPage + 1), currentHistoryPage >= totalPages));
+    container.appendChild(createButton('>>', () => changeHistoryPage(totalPages), currentHistoryPage >= totalPages));
+}
+
+function changeHistoryPage(newPage) {
+    if (newPage < 1) return;
+    currentHistoryPage = newPage;
+    renderHistoryTable();
 }

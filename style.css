@@ -670,3 +670,41 @@ tbody tr:hover {
     color: var(--text-primary);
     font-weight: 500;
 }
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.status-claim-sent {
+    background-color: #dcfce7;
+    /* green-100 */
+    color: #166534;
+    /* green-800 */
+}
+
+.status-waiting-claim {
+    background-color: #dbeafe;
+    /* blue-100 */
+    color: #1e40af;
+    /* blue-800 */
+}
+
+.status-transit {
+    background-color: #fef3c7;
+    /* yellow-100 */
+    color: #92400e;
+    /* yellow-800 */
+}
+
+.status-local {
+    background-color: #f3f4f6;
+    /* gray-100 */
+    color: #374151;
+    /* gray-700 */
+}
