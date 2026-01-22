@@ -66,10 +66,10 @@ window.addEventListener('click', function (e) {
 
 function populateSupplierFilter() {
     const filterSelect = document.getElementById('supplierPartFilter');
-    if (!filterSelect) return;
     let supplierItems = globalBookingData.filter(item => {
         return item['Recripte'] && String(item['Recripte']).trim() !== '';
     });
+    if (filterSelect) {
     const parts = new Set();
     supplierItems.forEach(item => {
         const name = item['Spare Part Name'];
@@ -85,6 +85,7 @@ function populateSupplierFilter() {
         if (part === currentPart) option.selected = true;
         filterSelect.appendChild(option);
     });
+    }
     populateSupplierProductFilter(supplierItems);
 }
 
@@ -249,7 +250,7 @@ function changeSupplierPage(newPage) { if (newPage < 1) return; currentSupplierP
 
 function populateClaimSentFilter() {
     const filterSelect = document.getElementById('claimSentPartFilter');
-    if (!filterSelect) return;
+    if (filterSelect) {
 
     // Filter Items: Must have 'Recripte' AND 'ClaimSup'
     const claimSentItems = globalBookingData.filter(item => {
@@ -267,6 +268,7 @@ function populateClaimSentFilter() {
         option.textContent = part;
         filterSelect.appendChild(option);
     });
+    }
 }
 
 function renderClaimSentTable() {

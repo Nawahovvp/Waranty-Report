@@ -155,6 +155,15 @@ function openStoreModal(item) {
     document.getElementById('store_serial').value = item.fullRow['Serial Number'] || '';
     document.getElementById('store_code').value = item.fullRow['Store Code'] || '';
     document.getElementById('store_name').value = item.fullRow['Store Name'] || '';
+    document.getElementById('store_techId').value = item.scrap['รหัสช่าง'] || '';
+    document.getElementById('store_techName').value = item.scrap['ชื่อช่าง'] || '';
+    document.getElementById('store_mobile').value = item.technicianPhone || '';
+    const ciNameEl = document.getElementById('store_ciName');
+    if (ciNameEl) ciNameEl.value = item.fullRow['CI Name'] || '';
+    const productTypeEl = document.getElementById('store_productType');
+    if (productTypeEl) productTypeEl.value = item.fullRow['Product Type'] || '';
+    const problemEl = document.getElementById('store_problem');
+    if (problemEl) problemEl.value = item.fullRow['Problem'] || '';
 
     const currentStatus = item.status || item.fullRow['ActionStatus'] || 'เคลมประกัน';
     setButtonActive(currentStatus);
@@ -197,18 +206,38 @@ function closeStoreModal() {
 function saveStoreDetail() {
     if (!editingItem) return;
     const serialInput = document.getElementById('store_serial').value.trim();
+    const qtyInput = document.getElementById('store_qty').value;
+    const mobileInput = document.getElementById('store_mobile').value;
     const actionStatus = document.getElementById('store_actionStatus').value;
 
     if (actionStatus === 'เคลมประกัน') {
         const isLE = editingItem.fullRow['Product'] === 'L&E';
         const minLength = isLE ? 6 : 8;
+        const input = document.getElementById('store_serial');
         if (!serialInput || serialInput.length < minLength) {
+            input.classList.add('input-flash-error');
+            setTimeout(() => input.classList.remove('input-flash-error'), 1500);
             Swal.fire({ icon: 'warning', title: 'ตรวจสอบข้อมูล', text: `กรุณาตรวจสอบ Serial Number ให้ถูกต้อง (L&E > 5 หลัก, อื่นๆ >= 8 หลัก)` });
+            return;
+        }
+        if (/[#$%\u0E00-\u0E7F\s]/.test(serialInput)) {
+            input.classList.add('input-flash-error');
+            setTimeout(() => input.classList.remove('input-flash-error'), 1500);
+            Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `Serial Number ห้ามมีอักขระพิเศษ, ภาษาไทย หรือช่องว่าง` });
+            return;
+        }
+        const keep = editingItem.scrap['Keep'] || '';
+        if (keep === 'SCOTMAN' && !String(serialInput).startsWith('NW508')) {
+            input.classList.add('input-flash-error');
+            setTimeout(() => input.classList.remove('input-flash-error'), 1500);
+            Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `Keep เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย NW508` });
             return;
         }
     }
 
     editingItem.fullRow['Serial Number'] = serialInput;
+    editingItem.scrap['qty'] = qtyInput;
+    editingItem.technicianPhone = mobileInput;
     editingItem.fullRow['ActionStatus'] = actionStatus;
     renderTable();
     sendDatatoGAS(editingItem);
@@ -378,15 +407,7 @@ async function openMainMobileModal(item) {
     if (newMobile !== undefined && newMobile !== currentMobile) saveMainMobile(item, newMobile);
 }
 
-async function saveMainMobile(item, newMobile) {
-    Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.status || item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Phone': newMobile };
-    delete payload['Values'];
-    try {
-        await postToGAS(payload);
-        item.technicianPhone = newMobile;
-        renderTable();
-        Swal.fire({ icon: 'success', title: 'Saved', timer: 1500, showConfirmButton: false });
-    } catch (e) { console.error(e); Swal.fire('Error', 'Failed to save mobile', 'error'); }
+function saveMainMobile(item, newMobile) {
+    item.technicianPhone = newMobile;
+    renderTable();
 }

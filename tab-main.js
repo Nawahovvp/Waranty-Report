@@ -1,5 +1,6 @@
 function populateFilters() {
     const filterSelect = document.getElementById('sparePartFilter');
+    if (!filterSelect) return;
     const uniqueParts = [...new Set(fullData.map(item => item.scrap['Spare Part Name']).filter(Boolean))].sort();
     const currentSelection = filterSelect.value;
     filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
@@ -27,7 +28,8 @@ function sortDisplayedData() {
 }
 
 function applyFilters() {
-    const selectedPart = document.getElementById('sparePartFilter').value;
+    const filterSelect = document.getElementById('sparePartFilter');
+    const selectedPart = filterSelect ? filterSelect.value : '';
     const selectedStatus = document.getElementById('statusFilter').value;
     const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
 
@@ -38,7 +40,7 @@ function applyFilters() {
         else if (selectedStatus) matchStatus = item.status === selectedStatus;
         let matchSearch = true;
         if (searchTerm) {
-            const allValues = [...Object.values(item.scrap), ...Object.values(item.fullRow)].join(' ').toLowerCase();
+            const allValues = [...Object.values(item.scrap || {}), ...Object.values(item.fullRow || {}), item.status || '', item.technicianPhone || '', item.person || ''].join(' ').toLowerCase();
             matchSearch = allValues.includes(searchTerm);
         }
         return matchPart && matchStatus && matchSearch;
@@ -131,7 +133,7 @@ function renderTable() {
             }
 
             if (col.key === 'Serial Number') { td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Serial Number'; td.onclick = () => openEditModal(item); }
-            if (col.key === 'Store Code') { td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to view details'; td.onclick = () => openStoreModal(item); }
+            if (col.key === 'status') { td.style.cursor = 'pointer'; td.title = 'Click to view details'; td.onclick = () => openStoreModal(item); }
             if (col.key === 'Person' || col.source === 'P') { td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Person'; td.onclick = () => openMainPersonModal(item); }
             if (col.key === 'Mobile' || col.source === 'T' || col.key === 'Phone') {
                 td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Mobile'; td.onclick = () => openMainMobileModal(item);
@@ -179,7 +181,10 @@ async function processBulkAction(actionName) {
             const serial = item.fullRow['Serial Number'] || '';
             const isLE = item.fullRow['Product'] === 'L&E';
             const minLength = isLE ? 6 : 8;
-            if (actionName === 'เคลมประกัน' && (!serial || serial.length < minLength)) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Serial Number ไม่ถูกต้อง (L&E > 5 หลัก, อื่นๆ >= 8 หลัก)` }); return; }
+            if (actionName === 'เคลมประกัน' && (!serial || serial.length < minLength)) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `ข้อมูล Serial Number ไม่ถูกต้อง โปรดดำเนินการ` }); return; }
+            if (actionName === 'เคลมประกัน' && /[#$%\u0E00-\u0E7F\s]/.test(serial)) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Serial Number ห้ามมีอักขระพิเศษ, ภาษาไทย หรือช่องว่าง` }); return; }
+            const keep = item.scrap['Keep'] || '';
+            if (actionName === 'เคลมประกัน' && keep === 'SCOTMAN' && !String(serial).startsWith('NW508')) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Keep เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย NW508` }); return; }
             if (actionName === 'เคลมประกัน') {
                 const mobile = item.technicianPhone || '';
                 if (!mobile || String(mobile).trim() === '') { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบถ้วน', text: `รายการ ${item.scrap['work order']}: กรุณาระบุเบอร์โทรศัพท์ (Mobile) ก่อนบันทึก` }); return; }

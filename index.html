@@ -7,9 +7,24 @@
     <title>บันทึกข้อมูล</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Suppress Tailwind CDN warning
+        const originalWarn = console.warn;
+        console.warn = (...args) => {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+            originalWarn.apply(console, args);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="style.css">
+    <style>
+        @keyframes flash-error {
+            0%, 100% { border-color: #e2e8f0; background-color: white; }
+            50% { border-color: #ef4444; background-color: #fef2f2; }
+        }
+        .input-flash-error { animation: flash-error 0.5s ease-in-out 3; }
+    </style>
 </head>
 
 <body>
@@ -52,7 +67,7 @@
 
     <!-- Store Detail Modal -->
     <div id="storeModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-content" style="max-width: 1200px; padding: 1rem; border-radius: 12px;">
             <button class="close-modal-btn" onclick="closeStoreModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -60,91 +75,126 @@
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
-            <div class="modal-header">
-                Warranty Claim Processing <br>
-                <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">Manage details for
-                    warranty claim</span>
+            <div class="modal-header" style="margin-bottom: 0.5rem; padding-bottom: 0.5rem;">
+                <span style="font-size: 1.25rem; font-weight: 600;">Warranty Claim Processing</span><br>
+                <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">Manage details for warranty claim</span>
             </div>
 
-            <!-- Section 1: Reference Information (Work Order & Store) -->
-            <div class="modal-section">
-                <div class="modal-section-title">Reference Information</div>
-                <div class="input-group" style="margin-bottom: 1rem;">
-                    <label>Reference Work Order</label>
-                    <input type="text" id="store_workOrder" disabled
-                        style="background-color: #f8fafc; font-size: 0.875rem;">
-                </div>
-                <div class="grid-2" style="grid-template-columns: 1fr 3fr;">
-                    <div class="input-group">
-                        <label>Store Code</label>
-                        <input type="text" id="store_code" disabled style="background-color: #f8fafc;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+                <!-- Section 1: Reference Information (Work Order & Store) -->
+                <div class="modal-section" style="margin-bottom: 0;">
+                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Reference Information</div>
+                    <div class="input-group" style="margin-bottom: 0.5rem;">
+                        <label>Reference Work Order</label>
+                        <input type="text" id="store_workOrder" disabled
+                            style="background-color: #f8fafc; padding: 0.4rem;">
                     </div>
-                    <div class="input-group">
-                        <label>Store Name</label>
-                        <input type="text" id="store_name" disabled style="background-color: #f8fafc;">
+                    <div class="grid-2" style="grid-template-columns: 1fr 3fr;">
+                        <div class="input-group">
+                            <label>Store Code</label>
+                            <input type="text" id="store_code" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        </div>
+                        <div class="input-group">
+                            <label>Store Name</label>
+                            <input type="text" id="store_name" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Section 2: Part & Claim Details -->
-            <div class="modal-section">
-                <div class="modal-section-title">Item Details</div>
-                <div class="grid-2">
-                    <div class="input-group">
-                        <label>Part Code</label>
-                        <input type="text" id="store_partCode" disabled style="background-color: #f8fafc;">
-                    </div>
-                    <div class="input-group">
-                        <label>Claim Qty</label>
-                        <input type="number" id="store_qty" disabled style="background-color: #f8fafc;">
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>CI Name</label>
+                        <input type="text" id="store_ciName" disabled style="background-color: #f8fafc; padding: 0.4rem;">
                     </div>
                 </div>
-                <div class="input-group" style="margin-top: 1rem;">
-                    <label>Spare Part Name</label>
-                    <input type="text" id="store_partName" disabled
-                        style="background-color: #f8fafc; font-weight: 500;">
+
+                <!-- Section 2: Part & Claim Details -->
+                <div class="modal-section" style="margin-bottom: 0;">
+                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Item Details</div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Part Code</label>
+                            <input type="text" id="store_partCode" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        </div>
+                        <div class="input-group">
+                            <label style="color: var(--primary-color);">Claim Qty (Editable)</label>
+                            <input type="number" id="store_qty" style="border-color: var(--primary-color); padding: 0.4rem;">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Spare Part Name</label>
+                        <input type="text" id="store_partName" disabled
+                            style="background-color: #f8fafc; font-weight: 500; padding: 0.4rem;">
+                    </div>
+                    <div class="grid-2" style="margin-top: 0.5rem;">
+                        <div class="input-group">
+                            <label>Product Type</label>
+                            <input type="text" id="store_productType" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        </div>
+                        <div class="input-group">
+                            <label style="color: var(--primary-color);">Serial Number (Editable)</label>
+                            <input type="text" id="store_serial" style="border-color: var(--primary-color); padding: 0.4rem;">
+                        </div>
+                    </div>
                 </div>
-                <!-- Serial Number (Editable) -->
-                <div class="input-group" style="margin-top: 1rem;">
-                    <label style="color: var(--primary-color);">Serial Number (Editable)</label>
-                    <input type="text" id="store_serial" style="border-color: var(--primary-color);">
+
+                <!-- Section: Technician Information -->
+                <div class="modal-section" style="margin-bottom: 0;">
+                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Technician Information</div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label>Technician ID</label>
+                            <input type="text" id="store_techId" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        </div>
+                        <div class="input-group">
+                            <label>Technician Name</label>
+                            <input type="text" id="store_techName" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label style="color: var(--primary-color);">Mobile (Editable)</label>
+                        <input type="text" id="store_mobile" style="border-color: var(--primary-color); padding: 0.4rem;">
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Problem</label>
+                        <input type="text" id="store_problem" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                    </div>
                 </div>
             </div>
 
-            <!-- Section 3: Warranty Action -->
-            <div class="modal-section">
-                <div class="modal-section-title">Warranty Action</div>
-                <div class="status-btn-group">
-                    <button type="button" class="status-btn"
-                        onclick="selectAction(this, 'เคลมประกัน')">เคลมประกัน</button>
-                    <button type="button" class="status-btn" onclick="selectAction(this, 'Sworp')">Sworp</button>
-                    <button type="button" class="status-btn"
-                        onclick="selectAction(this, 'หมดประกัน')">หมดประกัน</button>
-                    <button type="button" class="status-btn" onclick="selectAction(this, 'ชำรุด')">ชำรุด</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start;">
+                <!-- Section 3: Warranty Action -->
+                <div class="modal-section" style="margin-bottom: 0;">
+                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Warranty Action</div>
+                    <div class="status-btn-group">
+                        <button type="button" class="status-btn"
+                            onclick="selectAction(this, 'เคลมประกัน')">เคลมประกัน</button>
+                        <button type="button" class="status-btn" onclick="selectAction(this, 'Sworp')">Sworp</button>
+                        <button type="button" class="status-btn"
+                            onclick="selectAction(this, 'หมดประกัน')">หมดประกัน</button>
+                        <button type="button" class="status-btn" onclick="selectAction(this, 'ชำรุด')">ชำรุด</button>
+                    </div>
+                    <input type="hidden" id="store_actionStatus">
+                    <input type="hidden" id="store_actionStatus">
                 </div>
-                <input type="hidden" id="store_actionStatus">
-                <input type="hidden" id="store_actionStatus">
+
+                <!-- Section 4: Receiver (Only for L&E) -->
+                <div class="modal-section" id="receiverSection" style="display: none; margin-bottom: 0;">
+                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Receiver (ผู้รับ)</div>
+                    <div class="status-btn-group">
+                        <button type="button" class="status-btn receiver-btn"
+                            onclick="selectReceiver(this, 'Poom')">Poom</button>
+                        <button type="button" class="status-btn receiver-btn"
+                            onclick="selectReceiver(this, 'Mai')">Mai</button>
+                    </div>
+                    <input type="hidden" id="store_receiver">
+                </div>
             </div>
 
-            <!-- Section 4: Receiver (Only for L&E) -->
-            <div class="modal-section" id="receiverSection" style="display: none;">
-                <div class="modal-section-title">Receiver (ผู้รับ)</div>
-                <div class="status-btn-group">
-                    <button type="button" class="status-btn receiver-btn"
-                        onclick="selectReceiver(this, 'Poom')">Poom</button>
-                    <button type="button" class="status-btn receiver-btn"
-                        onclick="selectReceiver(this, 'Mai')">Mai</button>
-                </div>
-                <input type="hidden" id="store_receiver">
-            </div>
-
-            <div class="modal-actions">
+            <div class="modal-actions" style="margin-top: 1rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0;">
                 <button class="btn" onclick="closeStoreModal()">Cancel</button>
                 <button class="btn-primary" id="btnSaveStore" onclick="saveStoreDetail()">Confirm & Save</button>
                 <button class="btn-warning" id="btnUpdateStore" onclick="saveStoreDetail()"
-                    style="display: none;">Update (แก้ไข)</button>
+                    style="display: none;">แก้ไข</button>
                 <button class="btn-danger" id="btnDeleteStore" onclick="deleteStoreDetail()"
-                    style="display: none;">Delete (ลบ)</button>
+                    style="display: none;">ลบ</button>
             </div>
         </div>
     </div>
@@ -206,20 +256,10 @@
             <!-- Tab 1: Main Data (Existing Content) -->
             <div id="tab-content-main" class="tab-content active">
 
-                <div class="search-bar"
-                    style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background-color: #f8fafc;">
-                    <input type="text" id="searchInput" placeholder="Search..."
-                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem;"
-                        oninput="handleSearch()">
-                </div>
-
                 <div class="filter-bar">
-                    <label for="sparePartFilter"
-                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
-                        Part:</label>
-                    <select id="sparePartFilter" class="filter-select" onchange="handleFilterChange()">
-                        <option value="">All Spare Parts</option>
-                    </select>
+                    <input type="text" id="searchInput" placeholder="ค้นหาข้อมูล (Search)..."
+                        style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem; width: 300px;"
+                        oninput="handleSearch()">
                     <div
                         style="font-size: 0.875rem; font-weight: 600; color: var(--text-primary); border-left: 1px solid var(--border-color); padding-left: 1rem; display: flex; align-items: center; gap: 1rem;">
                         <div>จำนวน <span id="totalQtyValue" style="color: var(--primary-color); font-size: 1rem;">0
@@ -276,12 +316,19 @@
             <!-- Tab 2: Booking (Data Content) -->
             <div id="tab-content-booking" class="tab-content">
                 <div class="filter-bar">
-                    <label for="bookingPartFilter"
-                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
-                        Part:</label>
-                    <select id="bookingPartFilter" class="filter-select" onchange="handleBookingPartFilterChange()">
-                        <option value="">All Spare Parts</option>
-                    </select>
+                    <input type="text" id="bookingSearchInput" placeholder="ค้นหาข้อมูล (Search)..."
+                        style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem; width: 300px;"
+                        oninput="handleBookingSearch()">
+
+                    <!-- Status Filter -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                        <label for="bookingStatusFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
+                        <select id="bookingStatusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;" onchange="handleBookingStatusFilterChange()">
+                            <option value="">All Status</option>
+                            <option value="คลังพื้นที่">คลังพื้นที่</option>
+                            <option value="ระหว่างขนส่ง">ระหว่างขนส่ง</option>
+                        </select>
+                    </div>
 
                     <!-- Multi-Select Receiver Filter -->
                     <div style="position: relative; margin-left: 1rem;">
@@ -391,12 +438,6 @@
             <!-- TAB 5: Supplier View -->
             <div id="tab-content-supplier" class="tab-content">
                 <div class="filter-bar">
-                    <label for="supplierPartFilter"
-                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
-                        Part:</label>
-                    <select id="supplierPartFilter" class="filter-select" onchange="renderSupplierTable()">
-                        <option value="">All Spare Parts</option>
-                    </select>
 
                     <!-- Multi-Select Product Filter -->
                     <div style="position: relative; margin-left: 1rem;">
@@ -436,12 +477,6 @@
             <!-- TAB 6: Claim Sent View -->
             <div id="tab-content-claimSent" class="tab-content">
                 <div class="filter-bar">
-                    <label for="claimSentPartFilter"
-                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Spare
-                        Part:</label>
-                    <select id="claimSentPartFilter" class="filter-select" onchange="renderClaimSentTable()">
-                        <option value="">All Spare Parts</option>
-                    </select>
                 </div>
                 <div class="table-container">
                     <table id="claimSentTable">

@@ -5,6 +5,10 @@ let bookingReceiverOptions = new Set();
 
 function handleBookingPartFilterChange() { selectedBookingKeys.clear(); renderBookingTable(); }
 
+function handleBookingSearch() { currentBookingPage = 1; renderBookingTable(); }
+
+function handleBookingStatusFilterChange() { currentBookingPage = 1; renderBookingTable(); }
+
 function toggleAllBookingCheckboxes(source) {
     const isChecked = source.checked;
     currentBookingDisplayedData.forEach(row => {
@@ -147,6 +151,7 @@ window.addEventListener('click', function (e) {
 
 function populateBookingFilter() {
     const filterSelect = document.getElementById('bookingPartFilter');
+    if (filterSelect) {
     filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
     if (!globalBookingData || globalBookingData.length === 0) return;
     const parts = new Set();
@@ -154,13 +159,19 @@ function populateBookingFilter() {
     Array.from(parts).sort().forEach(part => {
         const option = document.createElement('option'); option.value = part; option.textContent = part; filterSelect.appendChild(option);
     });
+    }
     populateBookingReceiverFilter();
 }
 
 function renderBookingTable() {
     const tableHeader = document.getElementById('bookingTableHeader');
     const tableBody = document.getElementById('bookingTableBody');
-    const filterValue = document.getElementById('bookingPartFilter').value;
+    const filterSelect = document.getElementById('bookingPartFilter');
+    const filterValue = filterSelect ? filterSelect.value : '';
+    const searchInput = document.getElementById('bookingSearchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusFilter = document.getElementById('bookingStatusFilter');
+    const statusFilterValue = statusFilter ? statusFilter.value : '';
 
     // Render Headers FIRST (Always show headers)
     tableHeader.innerHTML = '';
@@ -195,6 +206,19 @@ function renderBookingTable() {
 
     if (filterValue) filteredData = filteredData.filter(row => row['Spare Part Name'] === filterValue);
     if (bookingReceiverOptions.size > 0) filteredData = filteredData.filter(row => { const val = row['Claim Receiver'] || row['person'] || ''; return bookingReceiverOptions.has(String(val).trim()); });
+    if (searchTerm) {
+        filteredData = filteredData.filter(row => {
+            return Object.values(row).some(val => String(val || '').toLowerCase().includes(searchTerm));
+        });
+    }
+    if (statusFilterValue) {
+        filteredData = filteredData.filter(item => {
+            const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
+            // Note: ClaimSup and Recripte are already filtered out above
+            const status = hasBookingSlip ? 'ระหว่างขนส่ง' : 'คลังพื้นที่';
+            return status === statusFilterValue;
+        });
+    }
 
     const sortedData = [...filteredData].reverse().sort((a, b) => { const nameA = a['Spare Part Name'] || ''; const nameB = b['Spare Part Name'] || ''; return nameA.localeCompare(nameB, 'th'); });
     currentBookingDisplayedData = sortedData;

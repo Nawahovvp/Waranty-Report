@@ -12,6 +12,9 @@ function switchTab(tabId) {
         tabs[1].classList.add('active');
         document.getElementById('tab-content-booking').style.display = 'flex';
         document.getElementById('tab-content-booking').classList.add('active');
+        const statusFilter = document.getElementById('bookingStatusFilter');
+        if (statusFilter) statusFilter.value = 'คลังพื้นที่';
+        if (typeof currentBookingPage !== 'undefined') currentBookingPage = 1;
         populateBookingFilter(); renderBookingTable();
     } else if (tabId === 'navanakorn') {
         tabs[2].classList.add('active');
