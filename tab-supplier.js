@@ -180,6 +180,11 @@ function renderSupplierTable() {
                     if (s.indexOf(' ') > -1) s = s.split(' ')[0];
                     value = s;
                 }
+                if (col.key === 'Plantcenter' && value) {
+                    const v = String(value).replace(/^0+/, '');
+                    if (v === '301') value = 'คลังนวนคร';
+                    else if (v === '326') value = 'คลังวิภาวดี';
+                }
                 td.textContent = value;
             }
             tr.appendChild(td);
@@ -231,15 +236,20 @@ async function sendClaim() {
     const result = await Swal.fire({ title: 'Confirm Send Claim?', html: `Update <b>${selectedItems.length}</b> items?<br><br>Date: <b>${formattedDate}</b><br>Supplier: <b>${claimSup}</b>`, icon: 'question', showCancelButton: true, confirmButtonText: 'Yes, Send', cancelButtonText: 'Cancel' });
     if (!result.isConfirmed) return;
 
-    Swal.fire({ title: 'Saving...', html: `Updating ${selectedItems.length} items...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    let successCount = 0; let failCount = 0;
-    for (let i = 0; i < selectedItems.length; i++) {
-        const item = selectedItems[i];
+    selectedItems.forEach(item => {
         const payload = { ...item, 'Claim Date': formattedDate, 'ClaimSup': claimSup, 'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown' };
-        try { await postToGAS(payload); item['Claim Date'] = formattedDate; item['ClaimSup'] = claimSup; successCount++; } catch (e) { console.error(e); failCount++; }
-    }
-    renderSupplierTable(); handleSupplierCheckboxChange();
-    Swal.fire({ icon: 'success', title: 'Completed', text: `Success: ${successCount}, Failed: ${failCount}` });
+        
+        // Optimistic
+        item['Claim Date'] = formattedDate; 
+        item['ClaimSup'] = claimSup;
+        
+        SaveQueue.add(payload);
+    });
+
+    renderSupplierTable(); 
+    handleSupplierCheckboxChange();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: `Sent ${selectedItems.length} items to claim` });
 }
 
 function changeSupplierPage(newPage) { if (newPage < 1) return; currentSupplierPage = newPage; renderSupplierTable(); }
@@ -403,6 +413,11 @@ function renderClaimSentTable() {
                     if (s.indexOf(' ') > -1) s = s.split(' ')[0];
                     value = s;
                 }
+                if (col.key === 'Plantcenter' && value) {
+                    const v = String(value).replace(/^0+/, '');
+                    if (v === '301') value = 'คลังนวนคร';
+                    else if (v === '326') value = 'คลังวิภาวดี';
+                }
                 td.textContent = value;
             }
             tr.appendChild(td);
@@ -519,6 +534,11 @@ function renderHistoryTable() {
                     if (s.indexOf('T') > -1) s = s.split('T')[0];
                     if (s.indexOf(' ') > -1) s = s.split(' ')[0];
                     value = s;
+                }
+                if (col.key === 'Plantcenter' && value) {
+                    const v = String(value).replace(/^0+/, '');
+                    if (v === '301') value = 'คลังนวนคร';
+                    else if (v === '326') value = 'คลังวิภาวดี';
                 }
                 td.textContent = value;
             }

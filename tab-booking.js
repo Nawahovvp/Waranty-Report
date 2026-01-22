@@ -80,28 +80,70 @@ async function processBookingAction(destination, targetPlantCode) {
 
     if (!isConfirmed) return;
 
-    let successCount = 0; let failCount = 0;
     const bookingDate = new Date();
-    Swal.fire({ title: 'กำลังบันทึก...', html: `กำลังประมวลผล 0 / ${selectedItems.length}`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const day = String(bookingDate.getDate()).padStart(2, '0');
+    const month = String(bookingDate.getMonth() + 1).padStart(2, '0');
+    const year = bookingDate.getFullYear();
+    const formattedDate = `${day}/${month}/${year}`;
 
-    for (let i = 0; i < selectedItems.length; i++) {
-        const item = selectedItems[i];
-        Swal.getHtmlContainer().textContent = `กำลังส่งข้อมูล ${i + 1} / ${selectedItems.length}`;
-        const day = String(bookingDate.getDate()).padStart(2, '0');
-        const month = String(bookingDate.getMonth() + 1).padStart(2, '0');
-        const year = bookingDate.getFullYear();
-        const formattedDate = `${day}/${month}/${year}`;
-        const payload = { ...item, 'Key': (item['Work Order'] || '') + (item['Spare Part Code'] || ''), 'Booking Slip': bookingSlip, 'Booking Date': formattedDate, 'Plantcenter': plantCenterCode };
-        try {
-            await postToGAS(payload);
-            item['Booking Slip'] = bookingSlip; item['Booking Date'] = payload['Booking Date']; item['Plantcenter'] = plantCenterCode;
-            successCount++;
-        } catch (e) { console.error(e); failCount++; }
-    }
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    selectedItems.forEach(item => {
+        // Attempt to retrieve missing enrichment fields from fullData (Scrap) to prevent overwriting with empty
+        let dateReceived = item['Date Received'];
+        let receiver = item['Receiver'] || item['receiver'];
+        let keep = item['Keep'];
+
+        if (!dateReceived || !receiver || !keep) {
+             const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             const match = fullData.find(d => {
+                 const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+                 return dKey === targetKey;
+             });
+             
+             if (match) {
+                 const getVal = (obj, keyName) => {
+                     if (obj[keyName]) return obj[keyName];
+                     const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
+                     const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
+                     return found ? obj[found] : '';
+                 };
+
+                 if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
+                 if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+                 if (!keep) keep = getVal(match.scrap, 'Keep');
+             }
+        }
+
+        // Send full item with updates to ensure other columns are preserved
+        const payload = { 
+            ...item,
+            'Booking Slip': bookingSlip, 
+            'Booking Date': formattedDate, 
+            'Plantcenter': plantCenterCode,
+            'user': currentUser.IDRec || 'Unknown',
+            'Claim Receiver': item['Claim Receiver'] || item.person || '',
+            'Receiver': receiver || '',
+            'Date Received': dateReceived || '',
+            'Keep': keep || '',
+            'CI Name': item['CI Name'] || '',
+            'Problem': item['Problem'] || '',
+            'Product Type': item['Product Type'] || ''
+        };
+        // Ensure Key is set correctly for lookup
+        payload['Key'] = (item['Work Order'] || '') + (item['Spare Part Code'] || '');
+        
+        // Optimistic Update
+        item['Booking Slip'] = bookingSlip; 
+        item['Booking Date'] = formattedDate; 
+        item['Plantcenter'] = plantCenterCode;
+        SaveQueue.add(payload);
+    });
 
     selectedBookingKeys.clear();
     renderBookingTable();
-    Swal.fire({ icon: successCount > 0 ? 'success' : 'error', title: 'เสร็จสิ้น', text: `อัปเดตเรียบร้อย: ${successCount} รายการ (ล้มเหลว: ${failCount})` });
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: `Added ${selectedItems.length} items to save queue` });
 }
 
 async function sendToNavaNakorn() { await processBookingAction('ส่งคลังนวนคร', '0301'); }
@@ -216,6 +258,18 @@ function renderBookingTable() {
             const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
             // Note: ClaimSup and Recripte are already filtered out above
             const status = hasBookingSlip ? 'ระหว่างขนส่ง' : 'คลังพื้นที่';
+
+            if (statusFilterValue === 'TodayOrLocal') {
+                if (status === 'คลังพื้นที่') return true;
+                const bDate = String(item['Booking Date'] || '').trim();
+                if (!bDate) return false;
+                const now = new Date();
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = now.getFullYear();
+                return bDate === `${day}/${month}/${year}`;
+            }
+
             return status === statusFilterValue;
         });
     }
@@ -334,6 +388,16 @@ function renderBookingTable() {
                 if (s.indexOf('T') > -1) s = s.split('T')[0];
                 if (s.indexOf(' ') > -1) s = s.split(' ')[0];
                 value = s;
+            }
+
+            if (col.key === 'Plant' && value) {
+                value = String(value).replace(/^0+/, '');
+            }
+
+            if (col.key === 'Plantcenter' && value) {
+                const v = String(value).replace(/^0+/, '');
+                if (v === '301') value = 'คลังนวนคร';
+                else if (v === '326') value = 'คลังวิภาวดี';
             }
 
             if (col.key === 'Mobile') {

@@ -50,7 +50,11 @@ function showApp(user) {
     document.getElementById('mainApp').style.display = 'flex';
 
     document.getElementById('displayUserName').textContent = user['Name'] || user['IDRec'];
+    const menuUserDisplay = document.getElementById('menuUserDisplay');
+    if (menuUserDisplay) menuUserDisplay.textContent = user['Name'] || user['IDRec'];
+
     const details = [
+        `ID: ${user['IDRec']}`,
         user['ตำแหน่ง'],
         user['หน่วยงาน'],
         user['Team'],

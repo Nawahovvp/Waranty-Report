@@ -39,6 +39,32 @@ async function saveWorkOrderDetail() {
     const recripteName = currentUser.name || currentUser.IDRec || 'Unknown';
     const recripteDate = new Date();
 
+    // Robust Data Lookup for missing fields
+    let dateReceived = editingItem['Date Received'];
+    let receiver = editingItem['Receiver'] || editingItem['receiver'];
+    let keep = editingItem['Keep'];
+    let ciName = editingItem['CI Name'];
+    let problem = editingItem['Problem'];
+    let productType = editingItem['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((editingItem['Work Order'] || '') + (editingItem['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
+    }
+
     const payload = {
         ...editingItem,
         'Serial Number': newSerial,
@@ -48,34 +74,37 @@ async function saveWorkOrderDetail() {
         'Recripte': recripteName,
         'RecripteDate': recripteDate.toLocaleString('en-GB'),
         'user': recripteName,
-        'ActionStatus': newAction
+        'ActionStatus': newAction,
+        'Date Received': dateReceived || '',
+        'Receiver': receiver || '',
+        'Keep': keep || '',
+        'CI Name': ciName || '',
+        'Problem': problem || '',
+        'Product Type': productType || ''
     };
 
-    Swal.fire({ title: 'Saving...', text: 'Updating Work Order details...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    // Optimistic Update
+    editingItem['Serial Number'] = newSerial;
+    editingItem['Note'] = newNote;
+    editingItem['Warranty Action'] = newAction;
+    editingItem['Qty'] = newQty;
+    editingItem['Recripte'] = recripteName;
+    editingItem['RecripteDate'] = payload['RecripteDate'];
 
-    try {
-        await postToGAS(payload);
-        editingItem['Serial Number'] = newSerial;
-        editingItem['Note'] = newNote;
-        editingItem['Warranty Action'] = newAction;
-        editingItem['Qty'] = newQty;
-        editingItem['Recripte'] = recripteName;
-        editingItem['RecripteDate'] = payload['RecripteDate'];
+    // Queue
+    SaveQueue.add(payload);
 
-        if (currentDetailContext) {
-            renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
-            if (currentDetailContext.tabKey === 'navanakorn') {
-                renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
-            } else if (currentDetailContext.tabKey === 'vibhavadi') {
-                renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
-            }
+    if (currentDetailContext) {
+        renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
+        if (currentDetailContext.tabKey === 'navanakorn') {
+            renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+        } else if (currentDetailContext.tabKey === 'vibhavadi') {
+            renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
         }
-        closeWorkOrderModal();
-        Swal.fire({ icon: 'success', title: 'Saved!', text: 'Work Order updated successfully.', timer: 1500, showConfirmButton: false });
-    } catch (error) {
-        console.error('Error saving Work Order:', error);
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to save changes to Google Sheet.' });
     }
+    closeWorkOrderModal();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Work Order updated' });
 }
 
 function selectWorkOrderAction(element, action) {
@@ -252,24 +281,21 @@ async function deleteStoreDetail() {
     });
     if (!result.isConfirmed) return;
 
-    Swal.fire({ title: 'Deleting...', text: 'Updating Google Sheet...', didOpen: () => Swal.showLoading() });
     const payload = {
         'work order': editingItem.scrap['work order'],
         'Spare Part Code': editingItem.scrap['Spare Part Code'],
         'operation': 'delete'
     };
 
-    try {
-        await postToGAS(payload);
-        Swal.fire('Deleted!', 'Record has been deleted.', 'success');
-        editingItem.status = '';
-        if (editingItem.fullRow) editingItem.fullRow['ActionStatus'] = '';
-        renderTable();
-        closeStoreModal();
-    } catch (error) {
-        console.error(error);
-        Swal.fire('Error', 'Failed to delete.', 'error');
-    }
+    // Optimistic Update
+    editingItem.status = '';
+    if (editingItem.fullRow) editingItem.fullRow['ActionStatus'] = '';
+    
+    SaveQueue.add(payload);
+    renderTable();
+    closeStoreModal();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Record deleted' });
 }
 
 async function openBookingSlipModal(item) {
@@ -299,19 +325,24 @@ async function openBookingSlipModal(item) {
 }
 
 async function updateBookingSlip(item, newSlip, newDate, newPlantCenter = null) {
-    Swal.fire({ title: 'Updating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const payload = { ...item, 'Booking Slip': newSlip, 'Booking Date': newDate, 'Plantcenter': newPlantCenter !== null ? newPlantCenter : item['Plantcenter'] };
-    try {
-        await postToGAS(payload);
-        item['Booking Slip'] = newSlip;
-        item['Booking Date'] = newDate;
-        if (newPlantCenter !== null) item['Plantcenter'] = newPlantCenter;
-        renderBookingTable();
-        Swal.fire({ icon: 'success', title: 'Updated', timer: 1500, showConfirmButton: false });
-    } catch (error) {
-        console.error('Error updating receiver:', error);
-        Swal.fire('Error', 'Failed to update', 'error');
-    }
+    const payload = { 
+        ...item,
+        'Booking Slip': newSlip, 
+        'Booking Date': newDate, 
+        'Plantcenter': newPlantCenter !== null ? newPlantCenter : item['Plantcenter'],
+        'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown'
+    };
+    payload['Key'] = (item['Work Order'] || '') + (item['Spare Part Code'] || '');
+    
+    // Optimistic
+    item['Booking Slip'] = newSlip;
+    item['Booking Date'] = newDate;
+    if (newPlantCenter !== null) item['Plantcenter'] = newPlantCenter;
+    
+    SaveQueue.add(payload);
+    renderBookingTable();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Booking Slip updated' });
 }
 
 async function openClaimReceiverModal(item) {
@@ -335,17 +366,41 @@ async function openClaimReceiverModal(item) {
 }
 
 async function updateClaimReceiver(item, newReceiver) {
-    Swal.fire({ title: 'Updating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const payload = { ...item, 'Claim Receiver': newReceiver };
-    try {
-        await postToGAS(payload);
-        item['Claim Receiver'] = newReceiver;
-        renderBookingTable();
-        Swal.fire({ icon: 'success', title: 'Updated', timer: 1500, showConfirmButton: false });
-    } catch (error) {
-        console.error('Error updating receiver:', error);
-        Swal.fire('Error', 'Failed to update receiver', 'error');
+    // Robust Data Lookup
+    let dateReceived = item['Date Received'];
+    let receiver = item['Receiver'] || item['receiver'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
     }
+
+    const payload = { ...item, 'Claim Receiver': newReceiver,
+        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+    
+    // Optimistic
+    item['Claim Receiver'] = newReceiver;
+    
+    SaveQueue.add(payload);
+    renderBookingTable();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Receiver updated' });
 }
 
 async function openMobileModal(item) {
@@ -354,17 +409,41 @@ async function openMobileModal(item) {
 }
 
 async function updateMobile(item, newMobile) {
-    Swal.fire({ title: 'Updating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const payload = { ...item, 'Mobile': newMobile };
-    try {
-        await postToGAS(payload);
-        item['Mobile'] = newMobile;
-        renderBookingTable();
-        Swal.fire({ icon: 'success', title: 'Updated', timer: 1500, showConfirmButton: false });
-    } catch (error) {
-        console.error('Error updating mobile:', error);
-        Swal.fire('Error', 'Failed to update mobile', 'error');
+    // Robust Data Lookup
+    let dateReceived = item['Date Received'];
+    let receiver = item['Receiver'] || item['receiver'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
     }
+
+    const payload = { ...item, 'Mobile': newMobile,
+        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+    
+    // Optimistic
+    item['Mobile'] = newMobile;
+    
+    SaveQueue.add(payload);
+    renderBookingTable();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Mobile updated' });
 }
 
 async function openMainPersonModal(item) {
@@ -388,17 +467,18 @@ async function openMainPersonModal(item) {
 }
 
 async function saveMainPerson(item, newPerson) {
-    Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
     const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.status || item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Claim Receiver': newPerson, 'Person': newPerson };
     delete payload['Values'];
-    try {
-        await postToGAS(payload);
-        item.person = newPerson;
-        if (item.fullRow) item.fullRow['Claim Receiver'] = newPerson;
-        renderTable();
-        Swal.fire({ icon: 'success', title: 'Saved', timer: 1500, showConfirmButton: false });
-    } catch (e) { console.error(e); Swal.fire('Error', 'Failed to save person', 'error'); }
+    
+    // Optimistic
+    item.person = newPerson;
+    if (item.fullRow) item.fullRow['Claim Receiver'] = newPerson;
+    
+    SaveQueue.add(payload);
+    renderTable();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Person saved' });
 }
 
 async function openMainMobileModal(item) {

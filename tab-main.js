@@ -132,18 +132,53 @@ function renderTable() {
                 td.style.fontSize = '0.875rem';
             }
 
-            if (col.key === 'Serial Number') { td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Serial Number'; td.onclick = () => openEditModal(item); }
+            if (col.key === 'Serial Number') { 
+                td.style.cursor = 'pointer'; 
+                td.style.color = 'var(--primary-color)'; 
+                td.style.fontWeight = '500'; 
+                td.title = 'Click to edit Serial Number'; 
+                td.onclick = () => openEditModal(item); 
+
+                // Validation for Claim Insurance
+                if (isSerialInvalidForClaim(item)) {
+                    td.classList.add('invalid-serial');
+                    td.title = 'Invalid Serial Number for Claim Insurance! Click to fix.';
+                }
+            }
             if (col.key === 'status') { td.style.cursor = 'pointer'; td.title = 'Click to view details'; td.onclick = () => openStoreModal(item); }
             if (col.key === 'Person' || col.source === 'P') { td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Person'; td.onclick = () => openMainPersonModal(item); }
             if (col.key === 'Mobile' || col.source === 'T' || col.key === 'Phone') {
                 td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Mobile'; td.onclick = () => openMainMobileModal(item);
-                if (!value) { td.innerText = '[Add]'; td.style.fontSize = '0.875rem'; }
+                if (!value) { 
+                    td.innerText = '[Add]'; 
+                    td.style.fontSize = '0.875rem'; 
+                    if (!item.status) {
+                        td.classList.add('invalid-serial');
+                        td.title = 'Mobile Number is required! Click to add.';
+                    }
+                }
             }
             tr.appendChild(td);
         });
         tableBody.appendChild(tr);
     });
     renderPagination();
+}
+
+function isSerialInvalidForClaim(item) {
+    // Skip validation if already saved/processed
+    if (item.status) return false;
+
+    const serial = item.fullRow['Serial Number'] || '';
+    const isLE = item.fullRow['Product'] === 'L&E';
+    const minLength = isLE ? 6 : 8;
+
+    if (!serial || serial.length < minLength) return true;
+    if (/[#$%\u0E00-\u0E7F\s]/.test(serial)) return true;
+    const keep = item.scrap['Keep'] || '';
+    if (keep === 'SCOTMAN' && !String(serial).startsWith('NW508')) return true;
+
+    return false;
 }
 
 function renderPagination() {
@@ -200,30 +235,85 @@ async function processBulkAction(actionName) {
     const result = await Swal.fire({ title: 'ยืนยันการบันทึก?', text: `คุณต้องการบันทึก ${selectedItems.length} รายการ ด้วยสถานะ "${actionName}" ใช่หรือไม่?`, icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก' });
     if (!result.isConfirmed) return;
 
-    let successCount = 0; let failCount = 0;
-    Swal.fire({ title: 'กำลังบันทึก...', html: `กำลังประมวลผล 0 / ${selectedItems.length}`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
-    for (let i = 0; i < selectedItems.length; i++) {
-        const item = selectedItems[i];
-        Swal.getHtmlContainer().textContent = `กำลังประมวลผล ${i + 1} / ${selectedItems.length}`;
-        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': actionName, 'Qty': item.scrap['qty'] || '', 'Serial Number': item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '' };
+    // --- OPTIMISTIC UPDATE & QUEUE ---
+    selectedItems.forEach(item => {
+        const getVal = (obj, keyName) => {
+             if (!obj) return '';
+             if (obj[keyName]) return obj[keyName];
+             const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
+             const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
+             return found ? obj[found] : '';
+        };
+
+        const getRobustVal = (itm, keyName) => {
+            let val = getVal(itm.scrap, keyName);
+            if (val) return val;
+            if (typeof fullData !== 'undefined') {
+                const wo = getVal(itm.scrap, 'work order') || getVal(itm.fullRow, 'Work Order');
+                const code = getVal(itm.scrap, 'Spare Part Code') || getVal(itm.fullRow, 'Spare Part Code');
+                const targetKey = (wo + code).replace(/\s/g, '').toLowerCase();
+                const match = fullData.find(d => {
+                    const dWO = d.scrap['work order'] || '';
+                    const dCode = d.scrap['Spare Part Code'] || '';
+                    return (dWO + dCode).replace(/\s/g, '').toLowerCase() === targetKey;
+                });
+                if (match) return getVal(match.scrap, keyName);
+            }
+            return '';
+        };
+
+        const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': actionName, 'Qty': item.scrap['qty'] || '', 'Serial Number': item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '',
+            'Date Received': getRobustVal(item, 'Date Received'),
+            'Receiver': getRobustVal(item, 'Receiver'),
+            'Keep': getRobustVal(item, 'Keep'),
+            'CI Name': item.fullRow['CI Name'] || getVal(item.fullRow, 'CI Name'),
+            'Problem': item.fullRow['Problem'] || getVal(item.fullRow, 'Problem'),
+            'Product Type': item.fullRow['Product Type'] || getVal(item.fullRow, 'Product Type')
+        };
+        
+        // Explicitly set Key to avoid Unknown in logs/backend
+        payload['Key'] = (getVal(item.scrap, 'work order') || '') + (getVal(item.scrap, 'Spare Part Code') || '');
+        
         delete payload['Values'];
-        try {
-            await postToGAS(payload);
-            successCount++;
-            item.status = actionName;
-            item.fullRow['ActionStatus'] = actionName;
-        } catch (e) { console.error(e); failCount++; }
-    }
+        
+        // Update Local State Immediately
+        item.status = actionName;
+        item.fullRow['ActionStatus'] = actionName;
+        item.fullRow['user'] = payload['user'];
+
+        // Add to Background Queue
+        SaveQueue.add(payload);
+    });
 
     selectedItems.forEach(item => {
         const itemPayload = { ...item.scrap, ...item.fullRow, 'Qty': item.scrap['qty'], 'Phone': item.technicianPhone };
         const targetKey = (itemPayload['work order'] || '') + (itemPayload['Spare Part Code'] || '');
+        
+        // Preserve existing data if available
+        const existingRow = globalBookingData.find(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey === targetKey; });
+        const preservedSlip = existingRow ? (existingRow['Booking Slip'] || '') : '';
+        const preservedDate = existingRow ? (existingRow['Booking Date'] || '') : '';
+        const preservedPlantCenter = existingRow ? (existingRow['Plantcenter'] || '') : '';
+        const preservedReceiver = existingRow ? (existingRow['Claim Receiver'] || '') : '';
+
         globalBookingData = globalBookingData.filter(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey !== targetKey; });
         if (actionName === 'เคลมประกัน') {
-            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-            const newBookingRow = { 'Work Order': itemPayload['work order'], 'Spare Part Code': itemPayload['Spare Part Code'], 'Spare Part Name': itemPayload['Spare Part Name'], 'Old Material Code': itemPayload['old material code'], 'Qty': itemPayload['Qty'], 'Serial Number': itemPayload['Serial Number'], 'Store Code': itemPayload['Store Code'], 'Store Name': itemPayload['Store Name'], 'รหัสช่าง': itemPayload['รหัสช่าง'], 'ชื่อช่าง': itemPayload['ชื่อช่าง'], 'Mobile': itemPayload['Phone'], 'Plant': itemPayload['plant'], 'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '', 'Product': itemPayload['Product'], 'Warranty Action': actionName, 'Recorder': currentUser.IDRec || 'Unknown', 'Timestamp': new Date().toISOString(), 'Booking Slip': '', 'Booking Date': '' };
+            const getVal = (obj, keyName) => {
+                 if (obj[keyName]) return obj[keyName];
+                 const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+                 return found ? obj[found] : '';
+            };
+
+            const newBookingRow = { 'Work Order': itemPayload['work order'], 'Spare Part Code': itemPayload['Spare Part Code'], 'Spare Part Name': itemPayload['Spare Part Name'], 'Old Material Code': itemPayload['old material code'], 'Qty': itemPayload['Qty'], 'Serial Number': itemPayload['Serial Number'], 'Store Code': itemPayload['Store Code'], 'Store Name': itemPayload['Store Name'], 'รหัสช่าง': itemPayload['รหัสช่าง'], 'ชื่อช่าง': itemPayload['ชื่อช่าง'], 'Mobile': itemPayload['Phone'], 'Plant': itemPayload['plant'], 'Claim Receiver': preservedReceiver || (item.person || ''), 'person': item.person, 'Product': itemPayload['Product'], 'Warranty Action': actionName, 'Recorder': currentUser.IDRec || 'Unknown', 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
+                'Date Received': getVal(item.scrap, 'Date Received'),
+                'Receiver': getVal(item.scrap, 'Receiver'),
+                'Keep': getVal(item.scrap, 'Keep'),
+                'CI Name': item.fullRow['CI Name'] || '',
+                'Problem': item.fullRow['Problem'] || '',
+                'Product Type': item.fullRow['Product Type'] || ''
+            };
             globalBookingData.push(newBookingRow);
         }
     });
@@ -232,30 +322,96 @@ async function processBulkAction(actionName) {
     try { renderDeckView('0301', 'navaNakornDeck', 'navanakorn'); renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi'); populateSupplierFilter(); renderSupplierTable(); populateClaimSentFilter(); renderClaimSentTable(); renderHistoryTable(); } catch (err) { console.warn('Error refreshing other tabs:', err); }
     renderTable();
     toggleAllCheckboxes({ checked: false });
-    Swal.fire({ icon: successCount > 0 ? 'success' : 'error', title: 'เสร็จสิ้น', text: `บันทึกสำเร็จ: ${successCount} รายการ\nล้มเหลว: ${failCount} รายการ` });
+    
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: `Added ${selectedItems.length} items to save queue` });
 }
 
 function sendDatatoGAS(item) {
     if (!GAS_API_URL) { alert("Please configure the Google Apps Script URL."); return; }
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', 'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ? (document.getElementById('store_receiver').value || item.person || '') : '' };
-    delete payload['Values'];
-    const saveBtn = document.querySelector('#storeModal .btn-primary');
-    const originalText = saveBtn.textContent;
-    saveBtn.disabled = true;
-    Swal.fire({ title: 'Saving...', text: 'Please wait while we save your data.', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    
+    const getVal = (obj, keyName) => {
+         if (!obj) return '';
+         if (obj[keyName]) return obj[keyName];
+         const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
+         const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
+         return found ? obj[found] : '';
+    };
 
-    postToGAS(payload).then(() => {
-        Swal.fire({ icon: 'success', title: 'Saved!', text: 'Data successfully saved to Google Sheet.', timer: 2000, showConfirmButton: false });
-        item.status = payload['ActionStatus'];
-        item.fullRow['user'] = payload['user'];
-        const targetKey = (payload['work order'] || '') + (payload['Spare Part Code'] || '');
-        globalBookingData = globalBookingData.filter(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey !== targetKey; });
-        if (payload['ActionStatus'] === 'เคลมประกัน') {
-            const newBookingRow = { 'Work Order': payload['work order'], 'Spare Part Code': payload['Spare Part Code'], 'Spare Part Name': payload['Spare Part Name'], 'Old Material Code': payload['old material code'], 'Qty': payload['Qty'], 'Serial Number': payload['Serial Number'], 'Store Code': payload['Store Code'], 'Store Name': payload['Store Name'], 'รหัสช่าง': payload['รหัสช่าง'], 'ชื่อช่าง': payload['ชื่อช่าง'], 'Mobile': payload['Phone'], 'Plant': payload['plant'], 'Claim Receiver': payload['Claim Receiver'], 'Product': payload['Product'], 'Warranty Action': payload['ActionStatus'], 'Recorder': payload['user'], 'Timestamp': new Date().toISOString(), 'Booking Slip': '', 'Booking Date': '' };
-            globalBookingData.push(newBookingRow);
+    const getRobustVal = (itm, keyName) => {
+        let val = getVal(itm.scrap, keyName);
+        if (val) return val;
+        if (typeof fullData !== 'undefined') {
+            const wo = getVal(itm.scrap, 'work order') || getVal(itm.fullRow, 'Work Order');
+            const code = getVal(itm.scrap, 'Spare Part Code') || getVal(itm.fullRow, 'Spare Part Code');
+            const targetKey = (wo + code).replace(/\s/g, '').toLowerCase();
+            const match = fullData.find(d => {
+                const dWO = d.scrap['work order'] || '';
+                const dCode = d.scrap['Spare Part Code'] || '';
+                return (dWO + dCode).replace(/\s/g, '').toLowerCase() === targetKey;
+            });
+            if (match) return getVal(match.scrap, keyName);
         }
-        populateBookingFilter(); renderBookingTable(); renderTable();
-    }).catch(error => { console.error('Error saving to GAS:', error); Swal.fire({ icon: 'error', title: 'Oops...', text: 'Failed to save to Google Sheet. Please try again.' }); })
-    .finally(() => { saveBtn.textContent = originalText; saveBtn.disabled = false; });
+        return '';
+    };
+
+    const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', 'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ? (document.getElementById('store_receiver').value || item.person || '') : '',
+        'Date Received': getRobustVal(item, 'Date Received'),
+        'Receiver': getRobustVal(item, 'Receiver'),
+        'Keep': getRobustVal(item, 'Keep'),
+        'CI Name': item.fullRow['CI Name'] || getVal(item.fullRow, 'CI Name'),
+        'Problem': item.fullRow['Problem'] || getVal(item.fullRow, 'Problem'),
+        'Product Type': item.fullRow['Product Type'] || getVal(item.fullRow, 'Product Type')
+    };
+    
+    // Explicitly set Key
+    payload['Key'] = (getVal(item.scrap, 'work order') || '') + (getVal(item.scrap, 'Spare Part Code') || '');
+
+    delete payload['Values'];
+
+    // --- OPTIMISTIC UPDATE (Update Local Data Immediately) ---
+    item.status = payload['ActionStatus'];
+    item.fullRow['user'] = payload['user'];
+    
+    // Update Global Booking Data locally
+    const targetKey = (payload['work order'] || '') + (payload['Spare Part Code'] || '');
+    
+    // Preserve existing data if available
+    const existingRow = globalBookingData.find(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey === targetKey; });
+    const preservedSlip = existingRow ? (existingRow['Booking Slip'] || '') : '';
+    const preservedDate = existingRow ? (existingRow['Booking Date'] || '') : '';
+    const preservedPlantCenter = existingRow ? (existingRow['Plantcenter'] || '') : '';
+
+    globalBookingData = globalBookingData.filter(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey !== targetKey; });
+    
+    if (payload['ActionStatus'] === 'เคลมประกัน') {
+        const getVal = (obj, keyName) => {
+             if (obj[keyName]) return obj[keyName];
+             const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+             return found ? obj[found] : '';
+        };
+
+        const newBookingRow = { 'Work Order': payload['work order'], 'Spare Part Code': payload['Spare Part Code'], 'Spare Part Name': payload['Spare Part Name'], 'Old Material Code': payload['old material code'], 'Qty': payload['Qty'], 'Serial Number': payload['Serial Number'], 'Store Code': payload['Store Code'], 'Store Name': payload['Store Name'], 'รหัสช่าง': payload['รหัสช่าง'], 'ชื่อช่าง': payload['ชื่อช่าง'], 'Mobile': payload['Phone'], 'Plant': payload['plant'], 'Claim Receiver': payload['Claim Receiver'], 'person': item.person, 'Product': payload['Product'], 'Warranty Action': payload['ActionStatus'], 'Recorder': payload['user'], 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
+            'Date Received': getVal(item.scrap, 'Date Received'),
+            'Receiver': getVal(item.scrap, 'Receiver'),
+            'Keep': getVal(item.scrap, 'Keep'),
+            'CI Name': item.fullRow['CI Name'] || '',
+            'Problem': item.fullRow['Problem'] || '',
+            'Product Type': item.fullRow['Product Type'] || ''
+        };
+        globalBookingData.push(newBookingRow);
+    }
+
+    // Refresh UI immediately
+    populateBookingFilter(); 
+    renderBookingTable(); 
+    renderTable();
+
+    // --- BACKGROUND SAVE ---
+    SaveQueue.add(payload);
+
+    // Show simple toast instead of blocking alert
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Saved to queue' });
 }

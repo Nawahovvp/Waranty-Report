@@ -24,6 +24,41 @@
             50% { border-color: #ef4444; background-color: #fef2f2; }
         }
         .input-flash-error { animation: flash-error 0.5s ease-in-out 3; }
+
+        /* Save Queue Status Indicator */
+        #saveQueueStatus {
+            /* Moved to Tab Bar */
+            margin-left: auto;
+            margin-right: 1rem;
+            background-color: #fff7ed; /* Light Orange background */
+            color: #c2410c; /* Orange text */
+            padding: 6px 12px;
+            border-radius: 20px; /* Pill shape */
+            display: none; /* Hidden by default */
+            align-items: center;
+            gap: 10px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid #ffedd5;
+        }
+        .spinner-small {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #c2410c;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Invalid Serial Number Animation */
+        @keyframes border-blink-red {
+            0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+            50% { box-shadow: inset 0 0 0 2px #ef4444; background-color: #fef2f2; }
+        }
+        .invalid-serial {
+            animation: border-blink-red 1.5s infinite ease-in-out;
+        }
     </style>
 </head>
 
@@ -232,7 +267,7 @@
                 <h1>บันทึกข้อมูล</h1>
                 <div class="menu-container">
                     <button class="btn" onclick="toggleMenu()">
-                        <span class="font-medium">Menu</span>
+                        <span class="font-medium" id="menuUserDisplay">Menu</span>
                     </button>
                     <div class="dropdown-menu" id="userDropdown">
                         <div class="user-name" id="displayUserName">User Name</div>
@@ -243,7 +278,7 @@
             </header>
 
             <!-- Tab Navigation -->
-            <div class="tabs-header">
+            <div class="tabs-header" style="display: flex; align-items: center;">
                 <div class="tab-btn active" onclick="switchTab('main')">บันทึกข้อมูล (Save Data)</div>
                 <div class="tab-btn" onclick="switchTab('booking')">บันทึกจองรถส่งคลังกลาง</div>
                 <div class="tab-btn" onclick="switchTab('navanakorn')">ใบจองรถนวนคร</div>
@@ -251,6 +286,11 @@
                 <div class="tab-btn" onclick="switchTab('supplier')">อะไหล่รอส่งSupplier</div>
                 <div class="tab-btn" onclick="switchTab('claimSent')">ส่งเคลมแล้ว</div>
                 <div class="tab-btn" onclick="switchTab('history')">ประวัติการเคลม</div>
+                <!-- Background Save Status (Moved here) -->
+                <div id="saveQueueStatus">
+                    <div class="spinner-small"></div>
+                    <span id="saveQueueText">Saving data...</span>
+                </div>
             </div>
 
             <!-- Tab 1: Main Data (Existing Content) -->
@@ -271,7 +311,7 @@
                             <select id="statusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;"
                                 onchange="handleFilterChange()">
                                 <option value="">All Status</option>
-                                <option value="Pending">Pending (รอคีย์)</option>
+                                <option value="Pending" selected>Pending (รอคีย์)</option>
                                 <option value="เคลมประกัน">เคลมประกัน</option>
                                 <option value="Sworp">Sworp</option>
                                 <option value="หมดประกัน">หมดประกัน</option>
@@ -325,6 +365,7 @@
                         <label for="bookingStatusFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
                         <select id="bookingStatusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;" onchange="handleBookingStatusFilterChange()">
                             <option value="">All Status</option>
+                            <option value="TodayOrLocal">Today / Local</option>
                             <option value="คลังพื้นที่">คลังพื้นที่</option>
                             <option value="ระหว่างขนส่ง">ระหว่างขนส่ง</option>
                         </select>

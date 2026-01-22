@@ -77,9 +77,22 @@ function doPost(e) {
     
     const rowData = headers.map(header => {
 
-      // Check for exact match or mapped key
+      // 1. Try exact match
+      let val = data[header];
+
+      // 2. Try mapped key
       const mappedKey = mapHeaderToKey(header);
-      let val = data[header] || data[mappedKey];
+      if (val === undefined) {
+        val = data[mappedKey];
+      }
+
+      // 3. Try robust lookup (ignore case/spaces) for Header & Mapped Key
+      if (val === undefined) {
+        val = getRobustValue(data, header);
+      }
+      if (val === undefined) {
+        val = getRobustValue(data, mappedKey);
+      }
       
       // Special Fallbacks
       if (val === undefined) {
@@ -145,4 +158,11 @@ function mapHeaderToKey(header) {
   if (lower === 'plantcenter' || lower === 'plant center') return 'Plantcenter';
   
   return map[header] || header;
+}
+
+function getRobustValue(data, key) {
+    if (!key) return undefined;
+    const cleanKey = String(key).replace(/\s+/g, '').toLowerCase();
+    const foundKey = Object.keys(data).find(k => String(k).replace(/\s+/g, '').toLowerCase() === cleanKey);
+    return foundKey ? data[foundKey] : undefined;
 }

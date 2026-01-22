@@ -25,11 +25,18 @@ function processWorkFilterData(workFilterData) {
     const workFilterDigitMap = new Map();
     let wfCodeKey = 'Work Order Number 1';
     let wfProductKey = 'Product';
+    let wfCINameKey = 'CI Name';
+    let wfProblemKey = 'Problem';
+    let wfProductTypeKey = 'Product Type';
 
     if (workFilterData.length > 0) {
         const headers = Object.keys(workFilterData[0]);
         wfCodeKey = headers.find(h => h.toLowerCase().includes('work') && (h.toLowerCase().includes('order') || h.toLowerCase().includes('no'))) || headers.find(h => h.toLowerCase().includes('key')) || 'Work Order Number 1';
-        wfProductKey = headers.find(h => h.toLowerCase().includes('product')) || 'Product';
+        wfProductKey = headers.find(h => h.toLowerCase().includes('product') && !h.toLowerCase().includes('type')) || 'Product';
+        
+        wfCINameKey = headers.find(h => h.trim().toLowerCase() === 'ci name') || wfCINameKey;
+        wfProblemKey = headers.find(h => h.trim().toLowerCase() === 'problem') || wfProblemKey;
+        wfProductTypeKey = headers.find(h => h.trim().toLowerCase() === 'product type') || wfProductTypeKey;
     }
 
     workFilterData.forEach(row => {
@@ -41,7 +48,7 @@ function processWorkFilterData(workFilterData) {
             if (digits.length > 3) workFilterDigitMap.set(digits, row);
         }
     });
-    return { workFilterMap, workFilterDigitMap, wfProductKey };
+    return { workFilterMap, workFilterDigitMap, wfProductKey, wfCINameKey, wfProblemKey, wfProductTypeKey };
 }
 
 function processTechnicianData(technicianData) {
@@ -71,33 +78,82 @@ async function loadTableData() {
         ]);
 
         const { partsMap, partsNameMap } = processPartsData(partsData);
-        const { workFilterMap, workFilterDigitMap, wfProductKey } = processWorkFilterData(workFilterData);
+        const { workFilterMap, workFilterDigitMap, wfProductKey, wfCINameKey, wfProblemKey, wfProductTypeKey } = processWorkFilterData(workFilterData);
         const technicianMap = processTechnicianData(technicianData);
 
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const userPlant = currentUser['Plant'] ? currentUser['Plant'].toString().trim().padStart(4, '0') : null;
 
+        // Detect Scrap Headers early for enrichment
+        let scrapCodeKey = 'Spare Part Code';
+        let scrapWOKey = 'work order';
+        let scrapDateReceivedKey = 'Date Received';
+        let scrapReceiverKey = 'Receiver';
+        let scrapKeepKey = 'Keep';
+
+        if (scrapData && scrapData.length > 0) {
+            const scrapHeaders = Object.keys(scrapData[0]);
+            scrapCodeKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'spare part code') || scrapCodeKey;
+            scrapWOKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'work order') || scrapWOKey;
+            
+            scrapDateReceivedKey = scrapHeaders.find(h => h.replace(/\s+/g, '').toLowerCase() === 'datereceived') || scrapDateReceivedKey;
+            scrapReceiverKey = scrapHeaders.find(h => h.replace(/\s+/g, '').toLowerCase() === 'receiver') || scrapReceiverKey;
+            scrapKeepKey = scrapHeaders.find(h => h.replace(/\s+/g, '').toLowerCase() === 'keep') || scrapKeepKey;
+        }
+
+        const scrapMap = new Map();
+        if (scrapData) {
+            scrapData.forEach(row => {
+                const key = ((row[scrapWOKey] || '') + (row[scrapCodeKey] || '')).replace(/\s/g, '').toLowerCase();
+                scrapMap.set(key, row);
+            });
+        }
+
         let warrantyWOKey = 'Work Order';
+        let warrantyClaimReceiverKey = 'Claim Receiver';
         if (warrantyData.length > 0) {
             const wHeaders = Object.keys(warrantyData[0]);
             warrantyWOKey = wHeaders.find(h => h.toLowerCase().includes('work') && h.toLowerCase().includes('order')) || 'Work Order';
+            warrantyClaimReceiverKey = wHeaders.find(h => h.toLowerCase().includes('claim') && h.toLowerCase().includes('receiver')) || 'Claim Receiver';
         }
 
         globalBookingData = warrantyData.filter(row => {
             const action = row['ActionStatus'] || row['Warranty Action'] || '';
             return action === 'เคลมประกัน';
         }).map(item => {
+            const wo = String(item[warrantyWOKey] || '').trim();
+            const code = String(item['Spare Part Code'] || '').trim();
+            
+            if (warrantyClaimReceiverKey !== 'Claim Receiver' && item[warrantyClaimReceiverKey]) {
+                item['Claim Receiver'] = item[warrantyClaimReceiverKey];
+            }
+            
+            // Enrich from WorkFilter (fullRow)
+            let wfRow = workFilterMap.get(wo.toLowerCase());
+            if (!wfRow) {
+                const digits = wo.replace(/\D/g, '');
+                if (digits.length > 3) wfRow = workFilterDigitMap.get(digits);
+            }
+
+            if (wfRow) {
+                if (!item['CI Name']) item['CI Name'] = wfRow[wfCINameKey];
+                if (!item['Problem']) item['Problem'] = wfRow[wfProblemKey];
+                if (!item['Product Type']) item['Product Type'] = wfRow[wfProductTypeKey];
+                if (!item['Product']) item['Product'] = wfRow[wfProductKey];
+            }
+
+            // Enrich from Scrap Data
+            const scrapKey = (wo + code).replace(/\s/g, '').toLowerCase();
+            const scrapRow = scrapMap.get(scrapKey);
+            if (scrapRow) {
+                if (!item['Date Received']) item['Date Received'] = scrapRow[scrapDateReceivedKey];
+                if (!item['Receiver']) item['Receiver'] = scrapRow[scrapReceiverKey];
+                if (!item['Keep']) item['Keep'] = scrapRow[scrapKeepKey];
+            }
+
             if (!item['Product']) {
-                const rawWO = String(item[warrantyWOKey] || '');
-                const wo = rawWO.trim().toLowerCase();
-                if (wo && workFilterMap.has(wo)) {
-                    item['Product'] = workFilterMap.get(wo)[wfProductKey];
-                } else {
-                    const digits = rawWO.replace(/\D/g, '');
-                    if (digits.length > 3 && workFilterDigitMap.has(digits)) {
-                        item['Product'] = workFilterDigitMap.get(digits)[wfProductKey];
-                    }
-                }
+                // Fallback logic if still missing (already handled above via wfRow, but keeping safe)
+                // ... (Logic merged into wfRow block above)
             }
             return item;
         });
@@ -113,15 +169,11 @@ async function loadTableData() {
             }
         });
 
-        let scrapCodeKey = 'Spare Part Code';
         let scrapNameKey = 'Spare Part Name';
-        let scrapWOKey = 'work order';
 
         if (scrapData && scrapData.length > 0) {
             const scrapHeaders = Object.keys(scrapData[0]);
-            scrapCodeKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'spare part code') || scrapCodeKey;
             scrapNameKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'spare part name') || scrapNameKey;
-            scrapWOKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'work order') || scrapWOKey;
         }
 
         fullData = scrapData.map(scrapRow => {
@@ -142,9 +194,19 @@ async function loadTableData() {
             if (scrapNameKey !== 'Spare Part Name') scrapRow['Spare Part Name'] = scrapRow[scrapNameKey];
             if (scrapWOKey !== 'work order') scrapRow['work order'] = scrapRow[scrapWOKey];
 
+            // Normalize enrichment keys for easier access in tab-main.js
+            if (scrapDateReceivedKey !== 'Date Received') scrapRow['Date Received'] = scrapRow[scrapDateReceivedKey];
+            if (scrapReceiverKey !== 'Receiver') scrapRow['Receiver'] = scrapRow[scrapReceiverKey];
+            if (scrapKeepKey !== 'Keep') scrapRow['Keep'] = scrapRow[scrapKeepKey];
+
+            const wfRow = workFilterMap.get(workOrderKey) || {};
+            if (wfCINameKey !== 'CI Name') wfRow['CI Name'] = wfRow[wfCINameKey];
+            if (wfProblemKey !== 'Problem') wfRow['Problem'] = wfRow[wfProblemKey];
+            if (wfProductTypeKey !== 'Product Type') wfRow['Product Type'] = wfRow[wfProductTypeKey];
+
             return {
                 scrap: scrapRow,
-                fullRow: workFilterMap.get(workOrderKey) || {},
+                fullRow: wfRow,
                 status: statusValue,
                 technicianPhone: technicianMap.get(String(scrapRow['รหัสช่าง'] || '').trim()) || '',
                 person: personValue
@@ -190,7 +252,9 @@ async function loadTableData() {
 
         document.getElementById('loadingIndicator').style.display = 'none';
         currentPage = 1;
-        renderTable();
+        const statusFilter = document.getElementById('statusFilter');
+        if (statusFilter) statusFilter.value = 'Pending';
+        applyFilters();
 
     } catch (err) {
         console.error(err);

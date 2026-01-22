@@ -177,7 +177,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <span>Booking Details: ${slip} (${targetReceiver})</span>
             <button class="btn btn-primary bulk-save-btn" style="display: none;" onclick="saveBulkReviewItems(this)">
-                Save Selected
+                ยืนยันรับ
             </button>
         </div>
     `;
@@ -211,12 +211,30 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
             if (col.key === 'checkbox') {
                 const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
                 const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-                const disabledAttr = (hasBookingSlip || hasRecripte) ? 'disabled' : '';
+                const disabledAttr = hasRecripte ? 'disabled' : '';
 
                 td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr}>`;
                 td.style.textAlign = 'center';
             } else if (col.key === 'CustomStatus') {
                 td.innerHTML = getComputedStatus(item);
+                const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+                const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+
+                if (!hasRecripte) {
+                    td.style.cursor = 'pointer';
+                    td.title = 'กดเพื่อยืนยันรับ';
+                    td.onclick = function (e) {
+                        e.stopPropagation();
+                        confirmReceiveItem(item);
+                    };
+                } else if (hasRecripte && !hasClaimSup) {
+                    td.style.cursor = 'pointer';
+                    td.title = 'กดเพื่อยกเลิกการรับ';
+                    td.onclick = function (e) {
+                        e.stopPropagation();
+                        cancelReceiveItem(item);
+                    };
+                }
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
                 td.style.cursor = 'pointer';
@@ -250,11 +268,9 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
 function toggleAllReviewCheckboxes(source) {
     const table = source.closest('table');
     if (!table) return;
-    const checkboxes = table.querySelectorAll('.review-checkbox');
+    const checkboxes = table.querySelectorAll('.review-checkbox:not(:disabled)');
     checkboxes.forEach(cb => cb.checked = source.checked);
-    if (checkboxes.length > 0) {
-        handleReviewCheckboxChange(checkboxes[0]);
-    }
+    handleReviewCheckboxChange(source);
 }
 
 function handleReviewCheckboxChange(source) {
@@ -265,7 +281,7 @@ function handleReviewCheckboxChange(source) {
     const saveBtn = wrapper.querySelector('.bulk-save-btn');
     if (saveBtn) {
         saveBtn.style.display = checkboxes.length > 0 ? 'block' : 'none';
-        saveBtn.textContent = `Save Selected (${checkboxes.length})`;
+        saveBtn.textContent = `ยืนยันรับ (${checkboxes.length})`;
     }
 }
 
@@ -291,27 +307,194 @@ async function saveBulkReviewItems(btnElement) {
     const recripteDate = new Date();
     const recripteDateStr = recripteDate.toLocaleString('en-GB');
 
-    Swal.fire({ title: 'Saving...', html: `Updating <b>1</b> / ${selectedItems.length} items...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    let successCount = 0;
-    let failCount = 0;
-
-    for (let i = 0; i < selectedItems.length; i++) {
-        const item = selectedItems[i];
-        if (Swal.getHtmlContainer()) Swal.getHtmlContainer().innerHTML = `Updating <b>${i + 1}</b> / ${selectedItems.length} items...`;
+    selectedItems.forEach(item => {
         const payload = { ...item, 'Recripte': recripteName, 'RecripteDate': recripteDateStr, 'user': recripteName };
-        try {
-            await postToGAS(payload);
-            item['Recripte'] = recripteName;
-            item['RecripteDate'] = recripteDateStr;
-            successCount++;
-        } catch (e) {
-            console.error(e);
-            failCount++;
-        }
-    }
+        
+        // Optimistic Update
+        item['Recripte'] = recripteName;
+        item['RecripteDate'] = recripteDateStr;
+        
+        // Queue
+        SaveQueue.add(payload);
+    });
 
-    Swal.fire({ icon: 'success', title: 'Updated', text: `Success: ${successCount}, Failed: ${failCount}`, timer: 1500, showConfirmButton: false });
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: `Updated ${selectedItems.length} items` });
+
     renderTopLevelDetailTable(tabKey, slip, targetReceiver);
     if (tabKey === 'navanakorn') renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
     if (tabKey === 'vibhavadi') renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+
+    const activeKey = slip + '|' + targetReceiver;
+    const deckContainer = document.getElementById(tabKey === 'navanakorn' ? 'navaNakornDeck' : 'vibhavadiDeck');
+    if (deckContainer) {
+        const cards = deckContainer.getElementsByClassName('deck-card');
+        let activeCard = null;
+        Array.from(cards).forEach(c => {
+            if (c.getAttribute('data-key') === activeKey) activeCard = c;
+        });
+        if (activeCard) {
+            activeCard.classList.add('active-card');
+            Array.from(cards).forEach(c => {
+                if (c !== activeCard) c.style.display = 'none';
+            });
+        }
+    }
+}
+
+async function cancelReceiveItem(item) {
+    const result = await Swal.fire({
+        title: 'ยกเลิกการรับ?',
+        text: `คุณต้องการยกเลิกการรับรายการ: ${item['Spare Part Name'] || ''}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ยกเลิกการรับ',
+        cancelButtonText: 'ไม่',
+        confirmButtonColor: '#d33'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    
+    // Payload to clear values
+    // Robust Data Lookup
+    let dateReceived = item['Date Received'];
+    let receiver = item['Receiver'] || item['receiver'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
+    }
+    
+    const payload = { ...item, 'Recripte': '', 'RecripteDate': '', 'user': currentUser.IDRec || 'Unknown',
+        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+
+    // Optimistic Update
+    item['Recripte'] = '';
+    item['RecripteDate'] = '';
+    
+    // Queue
+    SaveQueue.add(payload);
+
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'ยกเลิกการรับเรียบร้อย' });
+
+    if (currentDetailContext) {
+        const { slip, targetReceiver, tabKey } = currentDetailContext;
+        renderTopLevelDetailTable(tabKey, slip, targetReceiver);
+        if (tabKey === 'navanakorn') renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+        if (tabKey === 'vibhavadi') renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+
+        const activeKey = slip + '|' + targetReceiver;
+        const deckContainer = document.getElementById(tabKey === 'navanakorn' ? 'navaNakornDeck' : 'vibhavadiDeck');
+        if (deckContainer) {
+            const cards = deckContainer.getElementsByClassName('deck-card');
+            let activeCard = null;
+            Array.from(cards).forEach(c => {
+                if (c.getAttribute('data-key') === activeKey) activeCard = c;
+            });
+            if (activeCard) {
+                activeCard.classList.add('active-card');
+                Array.from(cards).forEach(c => {
+                    if (c !== activeCard) c.style.display = 'none';
+                });
+            }
+        }
+    }
+}
+
+async function confirmReceiveItem(item) {
+    const result = await Swal.fire({
+        title: 'ยืนยันรับ?',
+        text: `คุณต้องการยืนยันรับรายการ: ${item['Spare Part Name'] || ''}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันรับ',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const recripteName = currentUser.name || currentUser.IDRec || 'Unknown';
+    const recripteDate = new Date();
+    const recripteDateStr = recripteDate.toLocaleString('en-GB');
+
+    // Robust Data Lookup
+    let dateReceived = item['Date Received'];
+    let receiver = item['Receiver'] || item['receiver'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
+    }
+
+    const payload = { ...item, 'Recripte': recripteName, 'RecripteDate': recripteDateStr, 'user': recripteName,
+        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+    
+    // Optimistic Update
+    item['Recripte'] = recripteName;
+    item['RecripteDate'] = recripteDateStr;
+    
+    // Queue
+    SaveQueue.add(payload);
+
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'รับรายการเรียบร้อย' });
+
+    if (currentDetailContext) {
+        const { slip, targetReceiver, tabKey } = currentDetailContext;
+        renderTopLevelDetailTable(tabKey, slip, targetReceiver);
+        if (tabKey === 'navanakorn') renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+        if (tabKey === 'vibhavadi') renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+
+        const activeKey = slip + '|' + targetReceiver;
+        const deckContainer = document.getElementById(tabKey === 'navanakorn' ? 'navaNakornDeck' : 'vibhavadiDeck');
+        if (deckContainer) {
+            const cards = deckContainer.getElementsByClassName('deck-card');
+            let activeCard = null;
+            Array.from(cards).forEach(c => {
+                if (c.getAttribute('data-key') === activeKey) activeCard = c;
+            });
+            if (activeCard) {
+                activeCard.classList.add('active-card');
+                Array.from(cards).forEach(c => {
+                    if (c !== activeCard) c.style.display = 'none';
+                });
+            }
+        }
+    }
 }

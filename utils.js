@@ -8,6 +8,103 @@ async function postToGAS(payload) {
     });
 }
 
+// Background Save Queue System
+const SaveQueue = {
+    queue: [],
+    failedQueue: [],
+    isProcessing: false,
+
+    add: function(payload) {
+        if (!payload._retries) payload._retries = 0;
+        const key = payload['Key'] || payload['Work Order'] || payload['work order'] || 'Unknown';
+        console.log(`[SaveQueue] 📥 ADD: Queueing item. Total Pending: ${this.queue.length + 1}. Key: ${key}`, payload);
+        this.queue.push(payload);
+        this.updateUI();
+        this.process();
+    },
+
+    process: async function() {
+        if (this.isProcessing || this.queue.length === 0) return;
+
+        this.isProcessing = true;
+        const payload = this.queue[0]; // Peek first item
+        const key = payload['Key'] || payload['Work Order'] || payload['work order'] || 'Unknown';
+        console.log(`[SaveQueue] 🔄 PROCESS: Sending item to GAS... (Attempt ${payload._retries + 1}) Key: ${key}`);
+
+        try {
+            await postToGAS(payload);
+            console.log(`[SaveQueue] ✅ SUCCESS: Item sent. Key: ${key}`);
+            this.queue.shift(); // Remove only after success
+        } catch (error) {
+            console.error("Background Save Error:", error);
+            
+            payload._retries = (payload._retries || 0) + 1;
+            console.warn(`[SaveQueue] ⚠️ FAIL: Error sending item. Key: ${key}. Retry count: ${payload._retries}`);
+            
+            if (payload._retries < 3) {
+                // Retry logic: Wait 2 seconds then try again
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+                // Max retries reached. Move to failed queue.
+                console.error(`[SaveQueue] ❌ ABORT: Max retries reached. Moving to failed queue. Key: ${key}`);
+                this.failedQueue.push(this.queue.shift());
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true });
+                Toast.fire({ icon: 'error', title: 'Save Failed', text: 'Moved to failed queue.' });
+            }
+        } finally {
+            this.isProcessing = false;
+            this.updateUI();
+            if (this.queue.length > 0) {
+                this.process(); // Process next item
+            }
+        }
+    },
+
+    retryFailed: function() {
+        while (this.failedQueue.length > 0) {
+            const item = this.failedQueue.shift();
+            item._retries = 0;
+            this.queue.push(item);
+        }
+        this.updateUI();
+        this.process();
+    },
+
+    updateUI: function() {
+        const container = document.getElementById('saveQueueStatus');
+        const text = document.getElementById('saveQueueText');
+        if (!container || !text) return;
+
+        const pending = this.queue.length;
+        const failed = this.failedQueue.length;
+
+        if (pending === 0 && failed === 0 && !this.isProcessing) {
+            container.style.display = 'none';
+        } else {
+            container.style.display = 'flex';
+            const spinner = container.querySelector('.spinner-small');
+            
+            if (failed > 0) {
+                container.style.backgroundColor = '#fee2e2'; // Red
+                container.style.color = '#991b1b';
+                container.style.borderColor = '#fecaca';
+                text.innerHTML = `Failed: ${failed} <span style="text-decoration: underline; cursor: pointer; margin-left: 8px; font-weight: bold;" onclick="SaveQueue.retryFailed()">Retry All</span>`;
+                if (spinner) spinner.style.display = (this.isProcessing || pending > 0) ? 'block' : 'none';
+                if (spinner) spinner.style.borderColor = '#991b1b';
+                if (spinner) spinner.style.borderTopColor = 'transparent';
+            } else {
+                container.style.backgroundColor = '#fff7ed'; // Orange
+                container.style.color = '#c2410c';
+                container.style.borderColor = '#ffedd5';
+                text.textContent = `Saving... (${pending} pending)`;
+                if (spinner) spinner.style.display = 'block';
+                if (spinner) spinner.style.borderColor = '#c2410c';
+                if (spinner) spinner.style.borderTopColor = 'transparent';
+            }
+        }
+    }
+};
+
 async function fetchData(url) {
     try {
         const response = await fetch(url);
