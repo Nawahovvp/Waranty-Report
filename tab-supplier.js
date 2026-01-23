@@ -8,7 +8,12 @@ function populateSupplierProductFilter(data) {
     if (!dropdown) return;
     let sourceData = data;
     if (!sourceData) {
-        sourceData = globalBookingData.filter(item => item['Recripte'] && item['Recripte'].trim() !== '');
+        sourceData = globalBookingData.filter(item => {
+            const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+            const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+            const hasClaimDate = item['Claim Date'] && String(item['Claim Date']).trim() !== '';
+            return hasRecripte && (!hasClaimSup || !hasClaimDate);
+        });
     }
     const uniqueProducts = new Set();
     sourceData.forEach(item => {
@@ -67,7 +72,10 @@ window.addEventListener('click', function (e) {
 function populateSupplierFilter() {
     const filterSelect = document.getElementById('supplierPartFilter');
     let supplierItems = globalBookingData.filter(item => {
-        return item['Recripte'] && String(item['Recripte']).trim() !== '';
+        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        const hasClaimDate = item['Claim Date'] && String(item['Claim Date']).trim() !== '';
+        return hasRecripte && (!hasClaimSup || !hasClaimDate);
     });
     if (filterSelect) {
     const parts = new Set();
@@ -95,7 +103,10 @@ function renderSupplierTable() {
     const filterSelect = document.getElementById('supplierPartFilter');
     const filterValue = filterSelect ? filterSelect.value : '';
     let supplierData = globalBookingData.filter(item => {
-        return item['Recripte'] && item['Recripte'].trim() !== '';
+        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        const hasClaimDate = item['Claim Date'] && String(item['Claim Date']).trim() !== '';
+        return hasRecripte && (!hasClaimSup || !hasClaimDate);
     });
     const dropdown = document.getElementById('supplierProductDropdown');
     if (dropdown && dropdown.children.length === 0) {

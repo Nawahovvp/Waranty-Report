@@ -112,6 +112,8 @@ function renderTable() {
             const greenColumns = ['status', 'work order', 'Spare Part Code', 'Spare Part Name', 'old material code', 'qty', 'Serial Number', 'Store Code', 'Store Name'];
             const storeCode = item.fullRow['Store Code'] || '';
             const isMissingStore = !storeCode || String(storeCode).trim() === '';
+            const isReadyForClaim = !item.status && !isSerialInvalidForClaim(item) && (item.technicianPhone && String(item.technicianPhone).trim() !== '');
+            const readyColumns = ['work order', 'Spare Part Code', 'Spare Part Name'];
 
             if (item.status && greenColumns.includes(col.key)) {
                 const span = document.createElement('span');
@@ -121,6 +123,11 @@ function renderTable() {
                 else if (item.status === 'หมดประกัน') { bgColor = '#ffedd5'; textColor = '#9a3412'; }
                 else if (item.status === 'ชำรุด') { bgColor = '#fce7f3'; textColor = '#9d174d'; }
                 span.style.backgroundColor = bgColor; span.style.color = textColor; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
+                td.appendChild(span);
+            } else if (isReadyForClaim && readyColumns.includes(col.key)) {
+                const span = document.createElement('span');
+                span.textContent = value;
+                span.style.backgroundColor = '#dcfce7'; span.style.color = '#166534'; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
                 td.appendChild(span);
             } else if (!item.status && isMissingStore && col.key === 'status') {
                 const span = document.createElement('span');
@@ -176,7 +183,9 @@ function isSerialInvalidForClaim(item) {
     if (!serial || serial.length < minLength) return true;
     if (/[#$%\u0E00-\u0E7F\s]/.test(serial)) return true;
     const keep = item.scrap['Keep'] || '';
-    if (keep === 'SCOTMAN' && !String(serial).startsWith('NW508')) return true;
+    if (keep === 'SCOTMAN' && !String(serial).startsWith('IDP020') && !String(serial).startsWith('NW508')) return true;
+    const product = item.fullRow['Product'] || '';
+    if (product === 'SCOTMAN' && !String(serial).startsWith('IDP020') && !String(serial).startsWith('NW508')) return true;
 
     return false;
 }
@@ -219,7 +228,9 @@ async function processBulkAction(actionName) {
             if (actionName === 'เคลมประกัน' && (!serial || serial.length < minLength)) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `ข้อมูล Serial Number ไม่ถูกต้อง โปรดดำเนินการ` }); return; }
             if (actionName === 'เคลมประกัน' && /[#$%\u0E00-\u0E7F\s]/.test(serial)) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Serial Number ห้ามมีอักขระพิเศษ, ภาษาไทย หรือช่องว่าง` }); return; }
             const keep = item.scrap['Keep'] || '';
-            if (actionName === 'เคลมประกัน' && keep === 'SCOTMAN' && !String(serial).startsWith('NW508')) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Keep เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย NW508` }); return; }
+            if (actionName === 'เคลมประกัน' && keep === 'SCOTMAN' && !String(serial).startsWith('IDP020') && !String(serial).startsWith('NW508')) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Keep เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย IDP020 หรือ NW508` }); return; }
+            const product = item.fullRow['Product'] || '';
+            if (actionName === 'เคลมประกัน' && product === 'SCOTMAN' && !String(serial).startsWith('IDP020') && !String(serial).startsWith('NW508')) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Product เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย IDP020 หรือ NW508` }); return; }
             if (actionName === 'เคลมประกัน') {
                 const mobile = item.technicianPhone || '';
                 if (!mobile || String(mobile).trim() === '') { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบถ้วน', text: `รายการ ${item.scrap['work order']}: กรุณาระบุเบอร์โทรศัพท์ (Mobile) ก่อนบันทึก` }); return; }
@@ -265,8 +276,8 @@ async function processBulkAction(actionName) {
         };
 
         const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': actionName, 'Qty': item.scrap['qty'] || '', 'Serial Number': item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '',
-            'Date Received': getRobustVal(item, 'Date Received'),
-            'Receiver': getRobustVal(item, 'Receiver'),
+            'วันที่รับซาก': getRobustVal(item, 'วันที่รับซาก'),
+            'ผู้รับซาก': getRobustVal(item, 'ผู้รับซาก'),
             'Keep': getRobustVal(item, 'Keep'),
             'CI Name': item.fullRow['CI Name'] || getVal(item.fullRow, 'CI Name'),
             'Problem': item.fullRow['Problem'] || getVal(item.fullRow, 'Problem'),
@@ -307,8 +318,8 @@ async function processBulkAction(actionName) {
             };
 
             const newBookingRow = { 'Work Order': itemPayload['work order'], 'Spare Part Code': itemPayload['Spare Part Code'], 'Spare Part Name': itemPayload['Spare Part Name'], 'Old Material Code': itemPayload['old material code'], 'Qty': itemPayload['Qty'], 'Serial Number': itemPayload['Serial Number'], 'Store Code': itemPayload['Store Code'], 'Store Name': itemPayload['Store Name'], 'รหัสช่าง': itemPayload['รหัสช่าง'], 'ชื่อช่าง': itemPayload['ชื่อช่าง'], 'Mobile': itemPayload['Phone'], 'Plant': itemPayload['plant'], 'Claim Receiver': preservedReceiver || (item.person || ''), 'person': item.person, 'Product': itemPayload['Product'], 'Warranty Action': actionName, 'Recorder': currentUser.IDRec || 'Unknown', 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
-                'Date Received': getVal(item.scrap, 'Date Received'),
-                'Receiver': getVal(item.scrap, 'Receiver'),
+                'วันที่รับซาก': getVal(item.scrap, 'วันที่รับซาก'),
+                'ผู้รับซาก': getVal(item.scrap, 'ผู้รับซาก'),
                 'Keep': getVal(item.scrap, 'Keep'),
                 'CI Name': item.fullRow['CI Name'] || '',
                 'Problem': item.fullRow['Problem'] || '',
@@ -357,8 +368,8 @@ function sendDatatoGAS(item) {
     };
 
     const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', 'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ? (document.getElementById('store_receiver').value || item.person || '') : '',
-        'Date Received': getRobustVal(item, 'Date Received'),
-        'Receiver': getRobustVal(item, 'Receiver'),
+        'วันที่รับซาก': getRobustVal(item, 'วันที่รับซาก'),
+        'ผู้รับซาก': getRobustVal(item, 'ผู้รับซาก'),
         'Keep': getRobustVal(item, 'Keep'),
         'CI Name': item.fullRow['CI Name'] || getVal(item.fullRow, 'CI Name'),
         'Problem': item.fullRow['Problem'] || getVal(item.fullRow, 'Problem'),
@@ -393,8 +404,8 @@ function sendDatatoGAS(item) {
         };
 
         const newBookingRow = { 'Work Order': payload['work order'], 'Spare Part Code': payload['Spare Part Code'], 'Spare Part Name': payload['Spare Part Name'], 'Old Material Code': payload['old material code'], 'Qty': payload['Qty'], 'Serial Number': payload['Serial Number'], 'Store Code': payload['Store Code'], 'Store Name': payload['Store Name'], 'รหัสช่าง': payload['รหัสช่าง'], 'ชื่อช่าง': payload['ชื่อช่าง'], 'Mobile': payload['Phone'], 'Plant': payload['plant'], 'Claim Receiver': payload['Claim Receiver'], 'person': item.person, 'Product': payload['Product'], 'Warranty Action': payload['ActionStatus'], 'Recorder': payload['user'], 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
-            'Date Received': getVal(item.scrap, 'Date Received'),
-            'Receiver': getVal(item.scrap, 'Receiver'),
+            'วันที่รับซาก': getVal(item.scrap, 'วันที่รับซาก'),
+            'ผู้รับซาก': getVal(item.scrap, 'ผู้รับซาก'),
             'Keep': getVal(item.scrap, 'Keep'),
             'CI Name': item.fullRow['CI Name'] || '',
             'Problem': item.fullRow['Problem'] || '',

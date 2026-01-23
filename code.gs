@@ -12,8 +12,8 @@ function doPost(e) {
       // Added Technician Columns + Note + Recripte info
       const headers = [
         "KEY", "Work Order", "Spare Part Code", "Spare Part Name", "Old Material Code",
-        "Qty", "Serial Number", "Store Code", "Store Name", "Date Received",
-        "Receiver", "Plant", "Keep", "CI Name", "Problem", "Product Type", "Product",
+        "Qty", "Serial Number", "Store Code", "Store Name", "วันที่รับซาก",
+        "ผู้รับซาก", "Plant", "Keep", "CI Name", "Problem", "Product Type", "Product",
         "Warranty Action", "Recorder", "Timestamp", 
         "Booking Slip", "Booking Date", "Claim Receiver", "Claim Date", "ClaimSup",
         "รหัสช่าง", "ชื่อช่าง", "Mobile", "Plantcenter",
@@ -139,8 +139,8 @@ function mapHeaderToKey(header) {
   const map = {
     "Work Order": "work order",
     "Old Material Code": "old material code",
-    "Date Received": "วันที่รับซาก",
-    "Receiver": "ผู้รับซาก",
+    "Date Received": "วันที่รับซาก", // Keep for backward compatibility if header is English
+    "Receiver": "ผู้รับซาก",         // Keep for backward compatibility if header is English
     "Plant": "plant",
     "Recorder": "user",
     "Warranty Action": "ActionStatus",

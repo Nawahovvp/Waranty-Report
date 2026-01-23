@@ -6,25 +6,21 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
     if (!deckContainer) return;
     deckContainer.innerHTML = '';
 
+    const filterId = tabKey + 'PlantFilter';
+    populateDeckPlantFilter(targetPlantCode, filterId);
+    const filterElement = document.getElementById(filterId);
+    const selectedPlant = filterElement ? filterElement.value : '';
+
     const uniqueMap = new Map();
 
-    // Sort by Booking Date Descending
-    const sortedData = [...globalBookingData].sort((a, b) => {
-        const parseDate = (dateStr) => {
-            if (!dateStr) return 0;
-            const [d, m, y] = dateStr.split('/');
-            return new Date(y, m - 1, d).getTime();
-        };
-        return parseDate(b['Booking Date']) - parseDate(a['Booking Date']);
-    });
-
-    sortedData.forEach(item => {
+    globalBookingData.forEach(item => {
         const slip = item['Booking Slip'];
         const pcCode = String(item['Plantcenter'] || '').trim();
         const normalize = (s) => s.replace(/^0+/, '');
         
         if (!slip) return;
         if (normalize(pcCode) !== normalize(targetPlantCode)) return;
+        if (selectedPlant && item['Plant'] !== selectedPlant) return;
 
         const receiverVal = item['Claim Receiver'] || item.person || 'Unknown';
         const key = slip + '|' + receiverVal;
@@ -40,27 +36,56 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
         }
     });
 
-    if (uniqueMap.size === 0) {
+    // Convert to array for custom sorting
+    let cardsArray = Array.from(uniqueMap.values());
+
+    // Sort: Status Priority (ระหว่างตรวจรับ -> ระหว่างขนส่ง -> เสร็จสิ้น) then Date Descending
+    cardsArray.sort((a, b) => {
+        const getStatusPriority = (item) => {
+            const count = item._count || 1;
+            const recCount = item._recripteCount || 0;
+            if (recCount > 0 && recCount < count) return 1; // ระหว่างตรวจรับ
+            if (recCount === 0) return 2; // ระหว่างขนส่ง
+            if (recCount === count) return 3; // เสร็จสิ้น
+            return 4;
+        };
+
+        const priorityA = getStatusPriority(a);
+        const priorityB = getStatusPriority(b);
+
+        if (priorityA !== priorityB) return priorityA - priorityB;
+
+        const parseDate = (dateStr) => {
+            if (!dateStr) return 0;
+            const [d, m, y] = dateStr.split('/');
+            return new Date(y, m - 1, d).getTime();
+        };
+        return parseDate(b['Booking Date']) - parseDate(a['Booking Date']);
+    });
+
+    if (cardsArray.length === 0) {
         deckContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary); grid-column: 1/-1;">No booking records found for this plant.</p>';
         return;
     }
 
-    uniqueMap.forEach((item, key) => {
+    cardsArray.forEach(item => {
         const slip = item['Booking Slip'];
         const date = item['Booking Date'];
         const plantCode = item['Plant'] || '';
-        const plantName = PLANT_MAPPING[plantCode] || plantCode;
+        const normalizedPlantCode = String(plantCode).replace(/^0+/, '');
+        const plantName = PLANT_MAPPING[normalizedPlantCode] || plantCode;
         const receiver = item._effectiveReceiver;
         const count = item._count || 1;
         const recCount = item._recripteCount || 0;
+        const key = slip + '|' + receiver;
 
         let statusText = 'ระหว่างขนส่ง';
         let statusBg = '#fef3c7'; // yellow
         let statusColor = '#92400e';
 
-        if (recCount === 0) { statusText = 'ระหว่างขนส่ง'; statusBg = '#fef3c7'; statusColor = '#92400e'; }
-        else if (recCount < count) { statusText = 'ระหว่างตรวจรับ'; statusBg = '#e0f2fe'; statusColor = '#0369a1'; }
-        else if (recCount === count) { statusText = 'เสร็จสิ้น'; statusBg = '#dcfce7'; statusColor = '#166534'; }
+        if (recCount === 0) { statusText = '🚚 ระหว่างขนส่ง'; statusBg = '#fef3c7'; statusColor = '#92400e'; }
+        else if (recCount < count) { statusText = '⏳ ระหว่างตรวจรับ'; statusBg = '#fee2e2'; statusColor = '#991b1b'; }
+        else if (recCount === count) { statusText = '✅ เสร็จสิ้น'; statusBg = '#dbeafe'; statusColor = '#1e40af'; }
 
         const card = document.createElement('div');
         card.className = 'deck-card';
@@ -100,8 +125,8 @@ function backToDeck(tabKey) {
     
     const deckWrapper = document.getElementById(tabKey + 'DeckWrapper');
     if (deckWrapper) {
-        deckWrapper.style.height = '100%';
-        deckWrapper.style.flex = '';
+        deckWrapper.style.height = '';
+        deckWrapper.style.flex = '1';
     }
     
     // Remove active state from cards
@@ -151,11 +176,11 @@ function toggleDetailView(cardElement, tabKey, slip, targetReceiver) {
         deckWrapper.style.flex = '0 0 auto';
 
         tableWrapper.style.display = 'flex';
-        tableWrapper.style.height = 'auto';
+        tableWrapper.style.height = '0';
         tableWrapper.style.flex = '1';
 
         // Set Context and Render
-        currentDetailContext = { tabKey, slip, targetReceiver };
+        currentDetailContext = { tabKey, slip, targetReceiver, currentPage: 1 };
         renderTopLevelDetailTable(tabKey, slip, targetReceiver);
     }
 }
@@ -171,6 +196,16 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
         const itemReceiver = item['Claim Receiver'] || item.person || 'Unknown';
         return item['Booking Slip'] === slip && itemReceiver === targetReceiver;
     });
+
+    // Pagination Setup
+    const ITEMS_PER_PAGE_DECK = 20;
+    const currentPage = (currentDetailContext && currentDetailContext.currentPage) ? currentDetailContext.currentPage : 1;
+    const totalPages = Math.ceil(detailData.length / ITEMS_PER_PAGE_DECK);
+    
+    // Slice Data
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE_DECK;
+    const endIndex = startIndex + ITEMS_PER_PAGE_DECK;
+    const pageData = detailData.slice(startIndex, endIndex);
 
     // Update Header with Save Button
     header.innerHTML = `
@@ -197,12 +232,10 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     // Render Table Body
     tbody.innerHTML = '';
 
-    if (detailData.length === 0) {
+    if (pageData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center;">No data found.</td></tr>';
-        return;
-    }
-
-    detailData.forEach((item, index) => {
+    } else {
+    pageData.forEach((item, index) => {
         const tr = document.createElement('tr');
         BOOKING_COLUMNS.forEach(col => {
             const td = document.createElement('td');
@@ -213,7 +246,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
                 const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
                 const disabledAttr = hasRecripte ? 'disabled' : '';
 
-                td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr}>`;
+                td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${startIndex + index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr}>`;
                 td.style.textAlign = 'center';
             } else if (col.key === 'CustomStatus') {
                 td.innerHTML = getComputedStatus(item);
@@ -263,6 +296,10 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
         });
         tbody.appendChild(tr);
     });
+    }
+
+    const paginationId = tabKey === 'navanakorn' ? 'navanakornPagination' : 'vibhavadiPagination';
+    renderGenericPagination(paginationId, currentPage, totalPages, changeDeckDetailPage);
 }
 
 function toggleAllReviewCheckboxes(source) {
@@ -342,6 +379,48 @@ async function saveBulkReviewItems(btnElement) {
     }
 }
 
+function changeDeckDetailPage(newPage) {
+    if (!currentDetailContext) return;
+    currentDetailContext.currentPage = newPage;
+    renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
+}
+
+function populateDeckPlantFilter(targetPlantCode, filterId) {
+    const filterSelect = document.getElementById(filterId);
+    if (!filterSelect) return;
+
+    const currentSelection = filterSelect.value;
+    
+    // Clear existing options except first
+    while (filterSelect.options.length > 1) {
+        filterSelect.remove(1);
+    }
+
+    const plants = new Set();
+    globalBookingData.forEach(item => {
+        const pcCode = String(item['Plantcenter'] || '').trim();
+        const normalize = (s) => s.replace(/^0+/, '');
+        if (normalize(pcCode) === normalize(targetPlantCode)) {
+             if (item['Plant']) plants.add(item['Plant']);
+        }
+    });
+
+    const sortedPlants = Array.from(plants).sort();
+    
+    sortedPlants.forEach(plant => {
+        const option = document.createElement('option');
+        option.value = plant;
+        const normalizedPlant = String(plant).replace(/^0+/, '');
+        const plantName = (typeof PLANT_MAPPING !== 'undefined' ? PLANT_MAPPING[normalizedPlant] : plant) || plant;
+        option.textContent = plantName;
+        filterSelect.appendChild(option);
+    });
+
+    if (currentSelection && Array.from(filterSelect.options).some(o => o.value === currentSelection)) {
+        filterSelect.value = currentSelection;
+    }
+}
+
 async function cancelReceiveItem(item) {
     const result = await Swal.fire({
         title: 'ยกเลิกการรับ?',
@@ -359,8 +438,8 @@ async function cancelReceiveItem(item) {
     
     // Payload to clear values
     // Robust Data Lookup
-    let dateReceived = item['Date Received'];
-    let receiver = item['Receiver'] || item['receiver'];
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
     let keep = item['Keep'];
     let ciName = item['CI Name'];
     let problem = item['Problem'];
@@ -374,8 +453,8 @@ async function cancelReceiveItem(item) {
          });
          if (match) {
              const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
              if (!keep) keep = getVal(match.scrap, 'Keep');
              if (!ciName) ciName = match.fullRow['CI Name'] || '';
              if (!problem) problem = match.fullRow['Problem'] || '';
@@ -384,7 +463,7 @@ async function cancelReceiveItem(item) {
     }
     
     const payload = { ...item, 'Recripte': '', 'RecripteDate': '', 'user': currentUser.IDRec || 'Unknown',
-        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
 
     // Optimistic Update
     item['Recripte'] = '';
@@ -438,8 +517,8 @@ async function confirmReceiveItem(item) {
     const recripteDateStr = recripteDate.toLocaleString('en-GB');
 
     // Robust Data Lookup
-    let dateReceived = item['Date Received'];
-    let receiver = item['Receiver'] || item['receiver'];
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
     let keep = item['Keep'];
     let ciName = item['CI Name'];
     let problem = item['Problem'];
@@ -453,8 +532,8 @@ async function confirmReceiveItem(item) {
          });
          if (match) {
              const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
              if (!keep) keep = getVal(match.scrap, 'Keep');
              if (!ciName) ciName = match.fullRow['CI Name'] || '';
              if (!problem) problem = match.fullRow['Problem'] || '';
@@ -463,7 +542,7 @@ async function confirmReceiveItem(item) {
     }
 
     const payload = { ...item, 'Recripte': recripteName, 'RecripteDate': recripteDateStr, 'user': recripteName,
-        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
     
     // Optimistic Update
     item['Recripte'] = recripteName;

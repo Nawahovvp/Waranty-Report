@@ -89,48 +89,44 @@ async function processBookingAction(destination, targetPlantCode) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
     selectedItems.forEach(item => {
-        // Attempt to retrieve missing enrichment fields from fullData (Scrap) to prevent overwriting with empty
-        let dateReceived = item['Date Received'];
-        let receiver = item['Receiver'] || item['receiver'];
+        // Robust Data Lookup: Ensure critical fields exist before sending
+        let dateReceived = item['วันที่รับซาก'];
+        let receiver = item['ผู้รับซาก'];
         let keep = item['Keep'];
+        let ciName = item['CI Name'];
+        let problem = item['Problem'];
+        let productType = item['Product Type'];
 
-        if (!dateReceived || !receiver || !keep) {
+        if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
              const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
              const match = fullData.find(d => {
                  const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
                  return dKey === targetKey;
              });
-             
              if (match) {
-                 const getVal = (obj, keyName) => {
-                     if (obj[keyName]) return obj[keyName];
-                     const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
-                     const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
-                     return found ? obj[found] : '';
-                 };
-
-                 if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
-                 if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+                 const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+                 if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+                 if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
                  if (!keep) keep = getVal(match.scrap, 'Keep');
+                 if (!ciName) ciName = match.fullRow['CI Name'] || '';
+                 if (!problem) problem = match.fullRow['Problem'] || '';
+                 if (!productType) productType = match.fullRow['Product Type'] || '';
              }
         }
 
-        // Send full item with updates to ensure other columns are preserved
         const payload = { 
             ...item,
             'Booking Slip': bookingSlip, 
             'Booking Date': formattedDate, 
             'Plantcenter': plantCenterCode,
             'user': currentUser.IDRec || 'Unknown',
-            'Claim Receiver': item['Claim Receiver'] || item.person || '',
-            'Receiver': receiver || '',
-            'Date Received': dateReceived || '',
+            'วันที่รับซาก': dateReceived || '',
+            'ผู้รับซาก': receiver || '',
             'Keep': keep || '',
-            'CI Name': item['CI Name'] || '',
-            'Problem': item['Problem'] || '',
-            'Product Type': item['Product Type'] || ''
+            'CI Name': ciName || '',
+            'Problem': problem || '',
+            'Product Type': productType || ''
         };
-        // Ensure Key is set correctly for lookup
         payload['Key'] = (item['Work Order'] || '') + (item['Spare Part Code'] || '');
         
         // Optimistic Update

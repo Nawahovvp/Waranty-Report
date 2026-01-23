@@ -87,8 +87,8 @@ async function loadTableData() {
         // Detect Scrap Headers early for enrichment
         let scrapCodeKey = 'Spare Part Code';
         let scrapWOKey = 'work order';
-        let scrapDateReceivedKey = 'Date Received';
-        let scrapReceiverKey = 'Receiver';
+        let scrapDateReceivedKey = 'วันที่รับซาก';
+        let scrapReceiverKey = 'ผู้รับซาก';
         let scrapKeepKey = 'Keep';
 
         if (scrapData && scrapData.length > 0) {
@@ -96,8 +96,8 @@ async function loadTableData() {
             scrapCodeKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'spare part code') || scrapCodeKey;
             scrapWOKey = scrapHeaders.find(h => h.trim().toLowerCase() === 'work order') || scrapWOKey;
             
-            scrapDateReceivedKey = scrapHeaders.find(h => h.replace(/\s+/g, '').toLowerCase() === 'datereceived') || scrapDateReceivedKey;
-            scrapReceiverKey = scrapHeaders.find(h => h.replace(/\s+/g, '').toLowerCase() === 'receiver') || scrapReceiverKey;
+            scrapDateReceivedKey = scrapHeaders.find(h => h.includes('วันที่รับซาก') || h.replace(/\s+/g, '').toLowerCase() === 'datereceived') || scrapDateReceivedKey;
+            scrapReceiverKey = scrapHeaders.find(h => h.includes('ผู้รับซาก') || h.replace(/\s+/g, '').toLowerCase() === 'receiver') || scrapReceiverKey;
             scrapKeepKey = scrapHeaders.find(h => h.replace(/\s+/g, '').toLowerCase() === 'keep') || scrapKeepKey;
         }
 
@@ -146,8 +146,8 @@ async function loadTableData() {
             const scrapKey = (wo + code).replace(/\s/g, '').toLowerCase();
             const scrapRow = scrapMap.get(scrapKey);
             if (scrapRow) {
-                if (!item['Date Received']) item['Date Received'] = scrapRow[scrapDateReceivedKey];
-                if (!item['Receiver']) item['Receiver'] = scrapRow[scrapReceiverKey];
+                if (!item['วันที่รับซาก']) item['วันที่รับซาก'] = scrapRow[scrapDateReceivedKey];
+                if (!item['ผู้รับซาก']) item['ผู้รับซาก'] = scrapRow[scrapReceiverKey];
                 if (!item['Keep']) item['Keep'] = scrapRow[scrapKeepKey];
             }
 
@@ -195,8 +195,8 @@ async function loadTableData() {
             if (scrapWOKey !== 'work order') scrapRow['work order'] = scrapRow[scrapWOKey];
 
             // Normalize enrichment keys for easier access in tab-main.js
-            if (scrapDateReceivedKey !== 'Date Received') scrapRow['Date Received'] = scrapRow[scrapDateReceivedKey];
-            if (scrapReceiverKey !== 'Receiver') scrapRow['Receiver'] = scrapRow[scrapReceiverKey];
+            if (scrapDateReceivedKey !== 'วันที่รับซาก') scrapRow['วันที่รับซาก'] = scrapRow[scrapDateReceivedKey];
+            if (scrapReceiverKey !== 'ผู้รับซาก') scrapRow['ผู้รับซาก'] = scrapRow[scrapReceiverKey];
             if (scrapKeepKey !== 'Keep') scrapRow['Keep'] = scrapRow[scrapKeepKey];
 
             const wfRow = workFilterMap.get(workOrderKey) || {};

@@ -40,8 +40,8 @@ async function saveWorkOrderDetail() {
     const recripteDate = new Date();
 
     // Robust Data Lookup for missing fields
-    let dateReceived = editingItem['Date Received'];
-    let receiver = editingItem['Receiver'] || editingItem['receiver'];
+    let dateReceived = editingItem['วันที่รับซาก'];
+    let receiver = editingItem['ผู้รับซาก'];
     let keep = editingItem['Keep'];
     let ciName = editingItem['CI Name'];
     let problem = editingItem['Problem'];
@@ -56,8 +56,8 @@ async function saveWorkOrderDetail() {
          
          if (match) {
              const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
              if (!keep) keep = getVal(match.scrap, 'Keep');
              if (!ciName) ciName = match.fullRow['CI Name'] || '';
              if (!problem) problem = match.fullRow['Problem'] || '';
@@ -75,8 +75,8 @@ async function saveWorkOrderDetail() {
         'RecripteDate': recripteDate.toLocaleString('en-GB'),
         'user': recripteName,
         'ActionStatus': newAction,
-        'Date Received': dateReceived || '',
-        'Receiver': receiver || '',
+        'วันที่รับซาก': dateReceived || '',
+        'ผู้รับซาก': receiver || '',
         'Keep': keep || '',
         'CI Name': ciName || '',
         'Problem': problem || '',
@@ -102,7 +102,6 @@ async function saveWorkOrderDetail() {
             renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
         }
     }
-    closeWorkOrderModal();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
     Toast.fire({ icon: 'success', title: 'Work Order updated' });
 }
@@ -256,10 +255,17 @@ function saveStoreDetail() {
             return;
         }
         const keep = editingItem.scrap['Keep'] || '';
-        if (keep === 'SCOTMAN' && !String(serialInput).startsWith('NW508')) {
+        if (keep === 'SCOTMAN' && !String(serialInput).startsWith('IDP020') && !String(serialInput).startsWith('NW508')) {
             input.classList.add('input-flash-error');
             setTimeout(() => input.classList.remove('input-flash-error'), 1500);
-            Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `Keep เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย NW508` });
+            Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `Keep เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย IDP020 หรือ NW508` });
+            return;
+        }
+        const product = editingItem.fullRow['Product'] || '';
+        if (product === 'SCOTMAN' && !String(serialInput).startsWith('IDP020') && !String(serialInput).startsWith('NW508')) {
+            input.classList.add('input-flash-error');
+            setTimeout(() => input.classList.remove('input-flash-error'), 1500);
+            Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `Product เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย IDP020 หรือ NW508` });
             return;
         }
     }
@@ -270,7 +276,17 @@ function saveStoreDetail() {
     editingItem.fullRow['ActionStatus'] = actionStatus;
     renderTable();
     sendDatatoGAS(editingItem);
-    closeStoreModal();
+    
+    // Update buttons to reflect saved state
+    const btnSave = document.getElementById('btnSaveStore');
+    const btnUpdate = document.getElementById('btnUpdateStore');
+    const btnDelete = document.getElementById('btnDeleteStore');
+
+    if (editingItem.status) {
+        btnSave.style.display = 'none';
+        btnUpdate.style.display = 'inline-block';
+        btnDelete.style.display = 'inline-block';
+    }
 }
 
 async function deleteStoreDetail() {
@@ -325,12 +341,43 @@ async function openBookingSlipModal(item) {
 }
 
 async function updateBookingSlip(item, newSlip, newDate, newPlantCenter = null) {
+    // Robust Data Lookup
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
+    }
+
     const payload = { 
         ...item,
         'Booking Slip': newSlip, 
         'Booking Date': newDate, 
         'Plantcenter': newPlantCenter !== null ? newPlantCenter : item['Plantcenter'],
-        'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown'
+        'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown',
+        'วันที่รับซาก': dateReceived || '',
+        'ผู้รับซาก': receiver || '',
+        'Keep': keep || '',
+        'CI Name': ciName || '',
+        'Problem': problem || '',
+        'Product Type': productType || ''
     };
     payload['Key'] = (item['Work Order'] || '') + (item['Spare Part Code'] || '');
     
@@ -367,8 +414,8 @@ async function openClaimReceiverModal(item) {
 
 async function updateClaimReceiver(item, newReceiver) {
     // Robust Data Lookup
-    let dateReceived = item['Date Received'];
-    let receiver = item['Receiver'] || item['receiver'];
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
     let keep = item['Keep'];
     let ciName = item['CI Name'];
     let problem = item['Problem'];
@@ -382,8 +429,8 @@ async function updateClaimReceiver(item, newReceiver) {
          });
          if (match) {
              const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
              if (!keep) keep = getVal(match.scrap, 'Keep');
              if (!ciName) ciName = match.fullRow['CI Name'] || '';
              if (!problem) problem = match.fullRow['Problem'] || '';
@@ -392,7 +439,7 @@ async function updateClaimReceiver(item, newReceiver) {
     }
 
     const payload = { ...item, 'Claim Receiver': newReceiver,
-        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
     
     // Optimistic
     item['Claim Receiver'] = newReceiver;
@@ -410,8 +457,8 @@ async function openMobileModal(item) {
 
 async function updateMobile(item, newMobile) {
     // Robust Data Lookup
-    let dateReceived = item['Date Received'];
-    let receiver = item['Receiver'] || item['receiver'];
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
     let keep = item['Keep'];
     let ciName = item['CI Name'];
     let problem = item['Problem'];
@@ -425,8 +472,8 @@ async function updateMobile(item, newMobile) {
          });
          if (match) {
              const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'Receiver');
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
              if (!keep) keep = getVal(match.scrap, 'Keep');
              if (!ciName) ciName = match.fullRow['CI Name'] || '';
              if (!problem) problem = match.fullRow['Problem'] || '';
@@ -435,7 +482,7 @@ async function updateMobile(item, newMobile) {
     }
 
     const payload = { ...item, 'Mobile': newMobile,
-        'Date Received': dateReceived || '', 'Receiver': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
     
     // Optimistic
     item['Mobile'] = newMobile;

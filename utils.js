@@ -19,6 +19,7 @@ const SaveQueue = {
         const key = payload['Key'] || payload['Work Order'] || payload['work order'] || 'Unknown';
         console.log(`[SaveQueue] 📥 ADD: Queueing item. Total Pending: ${this.queue.length + 1}. Key: ${key}`, payload);
         this.queue.push(payload);
+        this.save();
         this.updateUI();
         this.process();
     },
@@ -35,6 +36,7 @@ const SaveQueue = {
             await postToGAS(payload);
             console.log(`[SaveQueue] ✅ SUCCESS: Item sent. Key: ${key}`);
             this.queue.shift(); // Remove only after success
+            this.save();
         } catch (error) {
             console.error("Background Save Error:", error);
             
@@ -48,6 +50,7 @@ const SaveQueue = {
                 // Max retries reached. Move to failed queue.
                 console.error(`[SaveQueue] ❌ ABORT: Max retries reached. Moving to failed queue. Key: ${key}`);
                 this.failedQueue.push(this.queue.shift());
+                this.save();
                 const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true });
                 Toast.fire({ icon: 'error', title: 'Save Failed', text: 'Moved to failed queue.' });
             }
@@ -66,8 +69,34 @@ const SaveQueue = {
             item._retries = 0;
             this.queue.push(item);
         }
+        this.save();
         this.updateUI();
         this.process();
+    },
+
+    save: function() {
+        try {
+            localStorage.setItem('WARRANTY_SAVE_QUEUE', JSON.stringify({
+                queue: this.queue,
+                failedQueue: this.failedQueue
+            }));
+        } catch (e) { console.error("Error saving queue to storage:", e); }
+    },
+
+    init: function() {
+        try {
+            const stored = localStorage.getItem('WARRANTY_SAVE_QUEUE');
+            if (stored) {
+                const data = JSON.parse(stored);
+                this.queue = data.queue || [];
+                this.failedQueue = data.failedQueue || [];
+                if (this.queue.length > 0 || this.failedQueue.length > 0) {
+                    console.log(`[SaveQueue] Restored ${this.queue.length} pending items from storage.`);
+                    this.updateUI();
+                    if (this.queue.length > 0) this.process();
+                }
+            }
+        } catch (e) { console.error("Error loading queue from storage:", e); }
     },
 
     updateUI: function() {
