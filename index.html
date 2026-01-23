@@ -20,27 +20,44 @@
     <link rel="stylesheet" href="style.css">
     <style>
         @keyframes flash-error {
-            0%, 100% { border-color: #e2e8f0; background-color: white; }
-            50% { border-color: #ef4444; background-color: #fef2f2; }
+
+            0%,
+            100% {
+                border-color: #e2e8f0;
+                background-color: white;
+            }
+
+            50% {
+                border-color: #ef4444;
+                background-color: #fef2f2;
+            }
         }
-        .input-flash-error { animation: flash-error 0.5s ease-in-out 3; }
+
+        .input-flash-error {
+            animation: flash-error 0.5s ease-in-out 3;
+        }
 
         /* Save Queue Status Indicator */
         #saveQueueStatus {
             /* Moved to Tab Bar */
             margin-left: auto;
             margin-right: 1rem;
-            background-color: #fff7ed; /* Light Orange background */
-            color: #c2410c; /* Orange text */
+            background-color: #fff7ed;
+            /* Light Orange background */
+            color: #c2410c;
+            /* Orange text */
             padding: 6px 12px;
-            border-radius: 20px; /* Pill shape */
-            display: none; /* Hidden by default */
+            border-radius: 20px;
+            /* Pill shape */
+            display: none;
+            /* Hidden by default */
             align-items: center;
             gap: 10px;
             font-size: 0.875rem;
             font-weight: 500;
             border: 1px solid #ffedd5;
         }
+
         .spinner-small {
             width: 16px;
             height: 16px;
@@ -49,13 +66,31 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
         /* Invalid Serial Number Animation */
         @keyframes border-blink-red {
-            0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
-            50% { box-shadow: inset 0 0 0 2px #ef4444; background-color: #fef2f2; }
+
+            0%,
+            100% {
+                box-shadow: inset 0 0 0 0 transparent;
+            }
+
+            50% {
+                box-shadow: inset 0 0 0 2px #ef4444;
+                background-color: #fef2f2;
+            }
         }
+
         .invalid-serial {
             animation: border-blink-red 1.5s infinite ease-in-out;
         }
@@ -90,7 +125,8 @@
         <div class="modal-content">
             <h3 class="modal-header" style="display: flex; align-items: center; gap: 8px;">
                 <span id="editModalTitle">Edit Serial Number</span>
-                <span id="btnExampleLE" style="cursor: pointer; display: none; font-size: 1.25rem;" onclick="showLEExample()" title="ดูตัวอย่าง">🖼️</span>
+                <span id="btnExampleLE" style="cursor: pointer; display: none; font-size: 1.25rem;"
+                    onclick="showLEExample()" title="ดูตัวอย่าง">🖼️</span>
             </h3>
             <div class="input-group">
                 <label for="editSerialInput">Serial Number</label>
@@ -115,13 +151,16 @@
             </button>
             <div class="modal-header" style="margin-bottom: 0.5rem; padding-bottom: 0.5rem;">
                 <span style="font-size: 1.25rem; font-weight: 600;">Warranty Claim Processing</span><br>
-                <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">Manage details for warranty claim</span>
+                <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">Manage details for
+                    warranty claim</span>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
                 <!-- Section 1: Reference Information (Work Order & Store) -->
                 <div class="modal-section" style="margin-bottom: 0;">
-                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Reference Information</div>
+                    <div class="modal-section-title"
+                        style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                        Reference Information</div>
                     <div class="input-group" style="margin-bottom: 0.5rem;">
                         <label>Reference Work Order</label>
                         <input type="text" id="store_workOrder" disabled
@@ -130,30 +169,37 @@
                     <div class="grid-2" style="grid-template-columns: 1fr 3fr;">
                         <div class="input-group">
                             <label>Store Code</label>
-                            <input type="text" id="store_code" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                            <input type="text" id="store_code" disabled
+                                style="background-color: #f8fafc; padding: 0.4rem;">
                         </div>
                         <div class="input-group">
                             <label>Store Name</label>
-                            <input type="text" id="store_name" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                            <input type="text" id="store_name" disabled
+                                style="background-color: #f8fafc; padding: 0.4rem;">
                         </div>
                     </div>
                     <div class="input-group" style="margin-top: 0.5rem;">
                         <label>CI Name</label>
-                        <input type="text" id="store_ciName" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        <input type="text" id="store_ciName" disabled
+                            style="background-color: #f8fafc; padding: 0.4rem;">
                     </div>
                 </div>
 
                 <!-- Section 2: Part & Claim Details -->
                 <div class="modal-section" style="margin-bottom: 0;">
-                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Item Details</div>
+                    <div class="modal-section-title"
+                        style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                        Item Details</div>
                     <div class="grid-2">
                         <div class="input-group">
                             <label>Part Code</label>
-                            <input type="text" id="store_partCode" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                            <input type="text" id="store_partCode" disabled
+                                style="background-color: #f8fafc; padding: 0.4rem;">
                         </div>
                         <div class="input-group">
                             <label style="color: var(--primary-color);">Claim Qty (Editable)</label>
-                            <input type="number" id="store_qty" style="border-color: var(--primary-color); padding: 0.4rem;">
+                            <input type="number" id="store_qty"
+                                style="border-color: var(--primary-color); padding: 0.4rem;">
                         </div>
                     </div>
                     <div class="input-group" style="margin-top: 0.5rem;">
@@ -164,35 +210,43 @@
                     <div class="grid-2" style="margin-top: 0.5rem;">
                         <div class="input-group">
                             <label>Product Type</label>
-                            <input type="text" id="store_productType" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                            <input type="text" id="store_productType" disabled
+                                style="background-color: #f8fafc; padding: 0.4rem;">
                         </div>
                         <div class="input-group">
                             <label style="color: var(--primary-color);">Serial Number (Editable)</label>
-                            <input type="text" id="store_serial" style="border-color: var(--primary-color); padding: 0.4rem;">
+                            <input type="text" id="store_serial"
+                                style="border-color: var(--primary-color); padding: 0.4rem;">
                         </div>
                     </div>
                 </div>
 
                 <!-- Section: Technician Information -->
                 <div class="modal-section" style="margin-bottom: 0;">
-                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Technician Information</div>
+                    <div class="modal-section-title"
+                        style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                        Technician Information</div>
                     <div class="grid-2">
                         <div class="input-group">
                             <label>Technician ID</label>
-                            <input type="text" id="store_techId" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                            <input type="text" id="store_techId" disabled
+                                style="background-color: #f8fafc; padding: 0.4rem;">
                         </div>
                         <div class="input-group">
                             <label>Technician Name</label>
-                            <input type="text" id="store_techName" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                            <input type="text" id="store_techName" disabled
+                                style="background-color: #f8fafc; padding: 0.4rem;">
                         </div>
                     </div>
                     <div class="input-group" style="margin-top: 0.5rem;">
                         <label style="color: var(--primary-color);">Mobile (Editable)</label>
-                        <input type="text" id="store_mobile" style="border-color: var(--primary-color); padding: 0.4rem;">
+                        <input type="text" id="store_mobile"
+                            style="border-color: var(--primary-color); padding: 0.4rem;">
                     </div>
                     <div class="input-group" style="margin-top: 0.5rem;">
                         <label>Problem</label>
-                        <input type="text" id="store_problem" disabled style="background-color: #f8fafc; padding: 0.4rem;">
+                        <input type="text" id="store_problem" disabled
+                            style="background-color: #f8fafc; padding: 0.4rem;">
                     </div>
                 </div>
             </div>
@@ -200,7 +254,9 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start;">
                 <!-- Section 3: Warranty Action -->
                 <div class="modal-section" style="margin-bottom: 0;">
-                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Warranty Action</div>
+                    <div class="modal-section-title"
+                        style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                        Warranty Action</div>
                     <div class="status-btn-group">
                         <button type="button" class="status-btn"
                             onclick="selectAction(this, 'เคลมประกัน')">เคลมประกัน</button>
@@ -215,7 +271,9 @@
 
                 <!-- Section 4: Receiver (Only for L&E) -->
                 <div class="modal-section" id="receiverSection" style="display: none; margin-bottom: 0;">
-                    <div class="modal-section-title" style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Receiver (ผู้รับ)</div>
+                    <div class="modal-section-title"
+                        style="font-size: 0.875rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                        Receiver (ผู้รับ)</div>
                     <div class="status-btn-group">
                         <button type="button" class="status-btn receiver-btn"
                             onclick="selectReceiver(this, 'Poom')">Poom</button>
@@ -267,13 +325,21 @@
     <div id="mainApp" style="display: none;">
         <div class="main-full-container">
             <header>
+                <button class="hamburger-btn" onclick="openSidebar()" aria-label="Open Menu">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
                 <h1>บันทึกข้อมูล</h1>
                 <div class="menu-container">
-                    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menu">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                    <button class="menu-btn" onclick="toggleMenu()" aria-label="User Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                     </button>
                     <div class="dropdown-menu" id="userDropdown">
@@ -284,17 +350,89 @@
                 </div>
             </header>
 
-            <!-- Tab Navigation -->
-            <div class="tabs-header" style="display: flex; align-items: center;">
-                <div class="tab-btn active" onclick="switchTab('main')">บันทึกข้อมูล (Save Data)</div>
-                <div class="tab-btn" onclick="switchTab('booking')">บันทึกจองรถส่งคลังกลาง</div>
-                <div class="tab-btn" onclick="switchTab('navanakorn')">ใบจองรถนวนคร</div>
-                <div class="tab-btn" onclick="switchTab('vibhavadi')">ใบจองรถวิภาวดี</div>
-                <div class="tab-btn" onclick="switchTab('supplier')">อะไหล่รอส่งSupplier</div>
-                <div class="tab-btn" onclick="switchTab('claimSent')">ส่งเคลมแล้ว</div>
-                <div class="tab-btn" onclick="switchTab('history')">ประวัติการเคลม</div>
-                <!-- Background Save Status (Moved here) -->
-                <div id="saveQueueStatus">
+            <!-- Sidebar Drawer -->
+            <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+            <div id="sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <h2>เมนู</h2>
+                    <button class="sidebar-close-btn" onclick="closeSidebar()" aria-label="Close Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <nav class="sidebar-nav">
+                    <a href="#" class="sidebar-item active" onclick="switchTab('main'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        <span>บันทึกข้อมูล (Save Data)</span>
+                    </a>
+                    <a href="#" class="sidebar-item" onclick="switchTab('booking'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                        </svg>
+                        <span>บันทึกจองรถส่งคลังกลาง</span>
+                    </a>
+                    <a href="#" class="sidebar-item" onclick="switchTab('navanakorn'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <span>ใบจองรถนวนคร</span>
+                    </a>
+                    <a href="#" class="sidebar-item" onclick="switchTab('vibhavadi'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <span>ใบจองรถวิภาวดี</span>
+                    </a>
+                    <a href="#" class="sidebar-item" onclick="switchTab('supplier'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        <span>อะไหล่รอส่งSupplier</span>
+                    </a>
+                    <a href="#" class="sidebar-item" onclick="switchTab('claimSent'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>ส่งเคลมแล้ว</span>
+                    </a>
+                    <a href="#" class="sidebar-item" onclick="switchTab('history'); closeSidebar(); return false;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>ประวัติการเคลม</span>
+                    </a>
+                </nav>
+                <!-- Background Save Status (Moved to sidebar) -->
+                <div id="saveQueueStatus" class="sidebar-status">
                     <div class="spinner-small"></div>
                     <span id="saveQueueText">Saving data...</span>
                 </div>
@@ -369,8 +507,10 @@
 
                     <!-- Status Filter -->
                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
-                        <label for="bookingStatusFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
-                        <select id="bookingStatusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;" onchange="handleBookingStatusFilterChange()">
+                        <label for="bookingStatusFilter"
+                            style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
+                        <select id="bookingStatusFilter" class="filter-select"
+                            style="min-width: 120px; padding: 0.35rem;" onchange="handleBookingStatusFilterChange()">
                             <option value="">All Status</option>
                             <option value="TodayOrLocal">Today / Local</option>
                             <option value="คลังพื้นที่">คลังพื้นที่</option>
@@ -417,9 +557,14 @@
 
             <!-- Tab 3: Nava Nakorn Deck View -->
             <div id="tab-content-navanakorn" class="tab-content">
-                <div class="filter-bar" style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background-color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
-                    <label for="navanakornPlantFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Plant:</label>
-                    <select id="navanakornPlantFilter" class="filter-select" style="padding: 0.35rem; border-radius: 4px; border: 1px solid var(--border-color);" onchange="renderDeckView('0301', 'navaNakornDeck', 'navanakorn')">
+                <div class="filter-bar"
+                    style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background-color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="navanakornPlantFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter
+                        Plant:</label>
+                    <select id="navanakornPlantFilter" class="filter-select"
+                        style="padding: 0.35rem; border-radius: 4px; border: 1px solid var(--border-color);"
+                        onchange="renderDeckView('0301', 'navaNakornDeck', 'navanakorn')">
                         <option value="">All Plants</option>
                     </select>
                 </div>
@@ -433,7 +578,8 @@
                     <div class="toolbar"
                         style="padding: 0.5rem 1rem; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background-color: #f8fafc;">
                         <!-- Back button hidden (Toggle logic used) -->
-                        <button class="btn" onclick="backToDeck('navanakorn')" style="gap: 0.5rem; display: flex; align-items: center;">
+                        <button class="btn" onclick="backToDeck('navanakorn')"
+                            style="gap: 0.5rem; display: flex; align-items: center;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -458,9 +604,14 @@
 
             <!-- Tab 4: Vibhavadi Deck View -->
             <div id="tab-content-vibhavadi" class="tab-content">
-                <div class="filter-bar" style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background-color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
-                    <label for="vibhavadiPlantFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter Plant:</label>
-                    <select id="vibhavadiPlantFilter" class="filter-select" style="padding: 0.35rem; border-radius: 4px; border: 1px solid var(--border-color);" onchange="renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi')">
+                <div class="filter-bar"
+                    style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background-color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="vibhavadiPlantFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Filter
+                        Plant:</label>
+                    <select id="vibhavadiPlantFilter" class="filter-select"
+                        style="padding: 0.35rem; border-radius: 4px; border: 1px solid var(--border-color);"
+                        onchange="renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi')">
                         <option value="">All Plants</option>
                     </select>
                 </div>
@@ -474,7 +625,8 @@
                     <div class="toolbar"
                         style="padding: 0.5rem 1rem; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background-color: #f8fafc;">
                         <!-- Back button hidden (Toggle logic used) -->
-                        <button class="btn" onclick="backToDeck('vibhavadi')" style="gap: 0.5rem; display: flex; align-items: center;">
+                        <button class="btn" onclick="backToDeck('vibhavadi')"
+                            style="gap: 0.5rem; display: flex; align-items: center;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -519,8 +671,10 @@
 
                     <!-- Status Filter -->
                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
-                        <label for="supplierStatusFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
-                        <select id="supplierStatusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;" onchange="renderSupplierTable()">
+                        <label for="supplierStatusFilter"
+                            style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
+                        <select id="supplierStatusFilter" class="filter-select"
+                            style="min-width: 120px; padding: 0.35rem;" onchange="renderSupplierTable()">
                             <option value="">All Status</option>
                             <option value="รอส่งเคลม">รอส่งเคลม</option>
                             <option value="ส่งเคลมแล้ว">ส่งเคลมแล้ว</option>
@@ -594,62 +748,79 @@
                 </button>
                 <div class="modal-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem;">
                     <span style="font-size: 1.1rem; font-weight: 600;">Work Order Details</span>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.5rem;">Manage details</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.5rem;">Manage
+                        details</span>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                     <!-- Left Column: Reference & Part Info -->
                     <div>
-                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Reference & Part Info</div>
+                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Reference &
+                            Part Info</div>
                         <div class="input-group" style="margin-bottom: 0.5rem;">
                             <label style="font-size: 0.75rem;">Work Order</label>
-                            <input type="text" id="woDetail_WorkOrder" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                            <input type="text" id="woDetail_WorkOrder" disabled
+                                style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <div class="input-group">
                                 <label style="font-size: 0.75rem;">Store Code</label>
-                                <input type="text" id="woDetail_StoreCode" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                                <input type="text" id="woDetail_StoreCode" disabled
+                                    style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
                             </div>
                             <div class="input-group">
                                 <label style="font-size: 0.75rem;">Store Name</label>
-                                <input type="text" id="woDetail_StoreName" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                                <input type="text" id="woDetail_StoreName" disabled
+                                    style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem;">
-                             <div class="input-group">
+                            <div class="input-group">
                                 <label style="font-size: 0.75rem;">Part Code</label>
-                                <input type="text" id="woDetail_PartCode" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                                <input type="text" id="woDetail_PartCode" disabled
+                                    style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
                             </div>
-                             <div class="input-group">
+                            <div class="input-group">
                                 <label style="font-size: 0.75rem;">Part Name</label>
-                                <input type="text" id="woDetail_PartName" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                                <input type="text" id="woDetail_PartName" disabled
+                                    style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
                             </div>
                         </div>
                     </div>
 
                     <!-- Right Column: Editable & Actions -->
                     <div>
-                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Edit Details</div>
+                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Edit Details
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <div class="input-group">
-                                <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Qty</label>
-                                <input type="text" id="woDetail_Qty" style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
+                                <label
+                                    style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Qty</label>
+                                <input type="text" id="woDetail_Qty"
+                                    style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
                             </div>
                             <div class="input-group">
-                                <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Serial Number</label>
-                                <input type="text" id="woDetail_SerialNumber" style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
+                                <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Serial
+                                    Number</label>
+                                <input type="text" id="woDetail_SerialNumber"
+                                    style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
                             </div>
                         </div>
                         <div class="input-group" style="margin-bottom: 1rem;">
-                            <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">หมายเหตุ</label>
-                            <input type="text" id="woDetail_Note" style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
+                            <label
+                                style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">หมายเหตุ</label>
+                            <input type="text" id="woDetail_Note"
+                                style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
                         </div>
 
                         <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Action</div>
                         <div class="status-btn-group" style="margin-top: 0;">
-                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'เคลมประกัน')" style="padding: 0.35rem; font-size: 0.8rem;">เคลมประกัน</button>
-                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'หมดประกัน')" style="padding: 0.35rem; font-size: 0.8rem;">หมดประกัน</button>
-                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'ชำรุด')" style="padding: 0.35rem; font-size: 0.8rem;">ชำรุด</button>
+                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'เคลมประกัน')"
+                                style="padding: 0.35rem; font-size: 0.8rem;">เคลมประกัน</button>
+                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'หมดประกัน')"
+                                style="padding: 0.35rem; font-size: 0.8rem;">หมดประกัน</button>
+                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'ชำรุด')"
+                                style="padding: 0.35rem; font-size: 0.8rem;">ชำรุด</button>
                         </div>
                         <input type="hidden" id="woDetail_ActionValue">
                     </div>
@@ -657,7 +828,8 @@
 
                 <div class="modal-actions" style="margin-top: 1rem; padding-top: 0.5rem;">
                     <button class="btn" onclick="closeWorkOrderModal()" style="padding: 0.4rem 1rem;">Close</button>
-                    <button class="btn btn-primary" onclick="saveWorkOrderDetail()" style="padding: 0.4rem 1rem;">Save Changes</button>
+                    <button class="btn btn-primary" onclick="saveWorkOrderDetail()" style="padding: 0.4rem 1rem;">Save
+                        Changes</button>
                 </div>
             </div>
         </div>
