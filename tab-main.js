@@ -112,7 +112,9 @@ function renderTable() {
             const greenColumns = ['status', 'work order', 'Spare Part Code', 'Spare Part Name', 'old material code', 'qty', 'Serial Number', 'Store Code', 'Store Name'];
             const storeCode = item.fullRow['Store Code'] || '';
             const isMissingStore = !storeCode || String(storeCode).trim() === '';
-            const isReadyForClaim = !item.status && !isSerialInvalidForClaim(item) && (item.technicianPhone && String(item.technicianPhone).trim() !== '');
+            const isLE = item.fullRow['Product'] === 'L&E';
+            const hasMobile = item.technicianPhone && String(item.technicianPhone).trim() !== '';
+            const isReadyForClaim = !item.status && !isSerialInvalidForClaim(item) && (isLE || hasMobile);
             const readyColumns = ['work order', 'Spare Part Code', 'Spare Part Name'];
 
             if (item.status && greenColumns.includes(col.key)) {
@@ -133,6 +135,11 @@ function renderTable() {
                 const span = document.createElement('span');
                 span.textContent = 'Wait Data';
                 span.style.backgroundColor = '#f1f5f9'; span.style.color = '#ef4444'; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
+                td.appendChild(span);
+            } else if (!item.status && col.key === 'status') {
+                const span = document.createElement('span');
+                span.textContent = 'Pending';
+                span.style.backgroundColor = '#fff7ed'; span.style.color = '#ea580c'; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
                 td.appendChild(span);
             } else {
                 td.textContent = value;
@@ -160,8 +167,10 @@ function renderTable() {
                     td.innerText = '[Add]'; 
                     td.style.fontSize = '0.875rem'; 
                     if (!item.status) {
-                        td.classList.add('invalid-serial');
-                        td.title = 'Mobile Number is required! Click to add.';
+                        if (!isLE) {
+                            td.classList.add('invalid-serial');
+                            td.title = 'Mobile Number is required! Click to add.';
+                        }
                     }
                 }
             }
@@ -233,7 +242,8 @@ async function processBulkAction(actionName) {
             if (actionName === 'เคลมประกัน' && product === 'SCOTMAN' && !String(serial).startsWith('IDP020') && !String(serial).startsWith('NW508')) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ถูกต้อง', text: `รายการ ${item.scrap['work order']}: Product เป็น SCOTMAN Serial Number ต้องขึ้นต้นด้วย IDP020 หรือ NW508` }); return; }
             if (actionName === 'เคลมประกัน') {
                 const mobile = item.technicianPhone || '';
-                if (!mobile || String(mobile).trim() === '') { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบถ้วน', text: `รายการ ${item.scrap['work order']}: กรุณาระบุเบอร์โทรศัพท์ (Mobile) ก่อนบันทึก` }); return; }
+                const isLE = item.fullRow['Product'] === 'L&E';
+                if (!isLE && (!mobile || String(mobile).trim() === '')) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบถ้วน', text: `รายการ ${item.scrap['work order']}: กรุณาระบุเบอร์โทรศัพท์ (Mobile) ก่อนบันทึก` }); return; }
             }
             selectedItems.push(item);
         }

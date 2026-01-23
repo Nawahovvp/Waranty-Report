@@ -88,7 +88,10 @@
     <!-- Edit Serial Modal -->
     <div id="editModal" class="modal-overlay">
         <div class="modal-content">
-            <h3 class="modal-header">Edit Serial Number</h3>
+            <h3 class="modal-header" style="display: flex; align-items: center; gap: 8px;">
+                <span id="editModalTitle">Edit Serial Number</span>
+                <span id="btnExampleLE" style="cursor: pointer; display: none; font-size: 1.25rem;" onclick="showLEExample()" title="ดูตัวอย่าง">🖼️</span>
+            </h3>
             <div class="input-group">
                 <label for="editSerialInput">Serial Number</label>
                 <input type="text" id="editSerialInput" placeholder="Enter new serial number">
@@ -266,8 +269,12 @@
             <header>
                 <h1>บันทึกข้อมูล</h1>
                 <div class="menu-container">
-                    <button class="btn" onclick="toggleMenu()">
-                        <span class="font-medium" id="menuUserDisplay">Menu</span>
+                    <button class="menu-btn" onclick="toggleMenu()" aria-label="Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
                     </button>
                     <div class="dropdown-menu" id="userDropdown">
                         <div class="user-name" id="displayUserName">User Name</div>
@@ -493,6 +500,9 @@
             <!-- TAB 5: Supplier View -->
             <div id="tab-content-supplier" class="tab-content">
                 <div class="filter-bar">
+                    <input type="text" id="supplierSearchInput" placeholder="Search..."
+                        style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem; width: 250px;"
+                        oninput="handleSupplierSearch()">
 
                     <!-- Multi-Select Product Filter -->
                     <div style="position: relative; margin-left: 1rem;">
@@ -507,6 +517,15 @@
                         </div>
                     </div>
 
+                    <!-- Status Filter -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                        <label for="supplierStatusFilter" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Status:</label>
+                        <select id="supplierStatusFilter" class="filter-select" style="min-width: 120px; padding: 0.35rem;" onchange="renderSupplierTable()">
+                            <option value="">All Status</option>
+                            <option value="รอส่งเคลม">รอส่งเคลม</option>
+                            <option value="ส่งเคลมแล้ว">ส่งเคลมแล้ว</option>
+                        </select>
+                    </div>
 
 
                     <!-- Supplier Bulk Actions -->
@@ -565,7 +584,7 @@
         </div>
         <!-- Work Order Detail Modal (Redesigned) -->
         <div id="workOrderModal" class="modal-overlay">
-            <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-content" style="max-width: 900px; padding: 1.5rem;">
                 <button class="close-modal-btn" onclick="closeWorkOrderModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -573,87 +592,72 @@
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
                 </button>
-                <div class="modal-header">
-                    Work Order Details <br>
-                    <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">
-                        Manage details for work order
-                    </span>
+                <div class="modal-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem;">
+                    <span style="font-size: 1.1rem; font-weight: 600;">Work Order Details</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.5rem;">Manage details</span>
                 </div>
 
-                <!-- Section 1: Reference Information -->
-                <div class="modal-section">
-                    <div class="modal-section-title">Reference Information</div>
-                    <div class="input-group" style="margin-bottom: 1rem;">
-                        <label>Work Order</label>
-                        <input type="text" id="woDetail_WorkOrder" disabled
-                            style="background-color: #f8fafc; font-size: 0.875rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <!-- Left Column: Reference & Part Info -->
+                    <div>
+                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Reference & Part Info</div>
+                        <div class="input-group" style="margin-bottom: 0.5rem;">
+                            <label style="font-size: 0.75rem;">Work Order</label>
+                            <input type="text" id="woDetail_WorkOrder" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <div class="input-group">
+                                <label style="font-size: 0.75rem;">Store Code</label>
+                                <input type="text" id="woDetail_StoreCode" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                            </div>
+                            <div class="input-group">
+                                <label style="font-size: 0.75rem;">Store Name</label>
+                                <input type="text" id="woDetail_StoreName" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                             <div class="input-group">
+                                <label style="font-size: 0.75rem;">Part Code</label>
+                                <input type="text" id="woDetail_PartCode" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                            </div>
+                             <div class="input-group">
+                                <label style="font-size: 0.75rem;">Part Name</label>
+                                <input type="text" id="woDetail_PartName" disabled style="background-color: #f8fafc; padding: 0.35rem; font-size: 0.85rem;">
+                            </div>
+                        </div>
                     </div>
-                    <div class="grid-2" style="grid-template-columns: 1fr 3fr; gap: 1rem; display: grid;">
-                        <div class="input-group">
-                            <label>Store Code</label>
-                            <input type="text" id="woDetail_StoreCode" disabled style="background-color: #f8fafc;">
+
+                    <!-- Right Column: Editable & Actions -->
+                    <div>
+                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Edit Details</div>
+                        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <div class="input-group">
+                                <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Qty</label>
+                                <input type="text" id="woDetail_Qty" style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
+                            </div>
+                            <div class="input-group">
+                                <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">Serial Number</label>
+                                <input type="text" id="woDetail_SerialNumber" style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label>Store Name</label>
-                            <input type="text" id="woDetail_StoreName" disabled style="background-color: #f8fafc;">
+                        <div class="input-group" style="margin-bottom: 1rem;">
+                            <label style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">หมายเหตุ</label>
+                            <input type="text" id="woDetail_Note" style="border-color: var(--primary-color); background-color: #f0f9ff; padding: 0.35rem; font-size: 0.85rem;">
                         </div>
+
+                        <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Action</div>
+                        <div class="status-btn-group" style="margin-top: 0;">
+                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'เคลมประกัน')" style="padding: 0.35rem; font-size: 0.8rem;">เคลมประกัน</button>
+                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'หมดประกัน')" style="padding: 0.35rem; font-size: 0.8rem;">หมดประกัน</button>
+                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'ชำรุด')" style="padding: 0.35rem; font-size: 0.8rem;">ชำรุด</button>
+                        </div>
+                        <input type="hidden" id="woDetail_ActionValue">
                     </div>
                 </div>
 
-                <!-- Section 2: Item Details -->
-                <div class="modal-section">
-                    <div class="modal-section-title">Item Details</div>
-                    <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="input-group">
-                            <label>Spare Part Code</label>
-                            <input type="text" id="woDetail_PartCode" disabled style="background-color: #f8fafc;">
-                        </div>
-                        <div class="input-group">
-                            <label style="color: var(--primary-color); font-weight: 600;">Qty (Editable)</label>
-                            <input type="text" id="woDetail_Qty"
-                                style="border-color: var(--primary-color); background-color: #f0f9ff;">
-                        </div>
-                    </div>
-                    <div class="input-group" style="margin-top: 1rem;">
-                        <label>Spare Part Name</label>
-                        <input type="text" id="woDetail_PartName" disabled
-                            style="background-color: #f8fafc; font-weight: 500;">
-                    </div>
-
-                    <!-- Editable Fields -->
-                    <div class="grid-2"
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-                        <div class="input-group">
-                            <label style="color: var(--primary-color); font-weight: 600;">Serial Number
-                                (Editable)</label>
-                            <input type="text" id="woDetail_SerialNumber"
-                                style="border-color: var(--primary-color); background-color: #f0f9ff;">
-                        </div>
-                        <div class="input-group">
-                            <label style="color: var(--primary-color); font-weight: 600;">Note (Editable)</label>
-                            <input type="text" id="woDetail_Note"
-                                style="border-color: var(--primary-color); background-color: #f0f9ff;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 3: Status -->
-                <div class="modal-section">
-                    <div class="modal-section-title">Warranty Action & Status</div>
-                    <div class="status-btn-group">
-                        <button type="button" class="status-btn"
-                            onclick="selectWorkOrderAction(this, 'เคลมประกัน')">เคลมประกัน</button>
-                        <button type="button" class="status-btn"
-                            onclick="selectWorkOrderAction(this, 'หมดประกัน')">หมดประกัน</button>
-                        <button type="button" class="status-btn"
-                            onclick="selectWorkOrderAction(this, 'ชำรุด')">ชำรุด</button>
-                    </div>
-                    <input type="hidden" id="woDetail_ActionValue">
-                </div>
-
-                <div class="modal-actions">
-                    <button class="btn" onclick="closeWorkOrderModal()">Close</button>
-                    <button class="btn btn-primary" onclick="saveWorkOrderDetail()">Save Changes</button>
+                <div class="modal-actions" style="margin-top: 1rem; padding-top: 0.5rem;">
+                    <button class="btn" onclick="closeWorkOrderModal()" style="padding: 0.4rem 1rem;">Close</button>
+                    <button class="btn btn-primary" onclick="saveWorkOrderDetail()" style="padding: 0.4rem 1rem;">Save Changes</button>
                 </div>
             </div>
         </div>

@@ -3,6 +3,35 @@ let currentSupplierPage = 1;
 let currentClaimSentPage = 1;
 let currentHistoryPage = 1;
 
+function isDateToday(dateStr) {
+    if (!dateStr) return false;
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const todayStr = `${day}/${month}/${year}`;
+    if (dateStr === todayStr) return true;
+    
+    // Handle DD/MM/YYYY explicitly to prevent Invalid Date in some browsers
+    if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}` === todayStr;
+        }
+    }
+
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+        const dDay = String(d.getDate()).padStart(2, '0');
+        const dMonth = String(d.getMonth() + 1).padStart(2, '0');
+        const dYear = d.getFullYear();
+        return `${dDay}/${dMonth}/${dYear}` === todayStr;
+    }
+    return false;
+}
+
+function handleSupplierSearch() { currentSupplierPage = 1; renderSupplierTable(); }
+
 function populateSupplierProductFilter(data) {
     const dropdown = document.getElementById('supplierProductDropdown');
     if (!dropdown) return;
@@ -11,8 +40,10 @@ function populateSupplierProductFilter(data) {
         sourceData = globalBookingData.filter(item => {
             const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
             const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-            const hasClaimDate = item['Claim Date'] && String(item['Claim Date']).trim() !== '';
-            return hasRecripte && (!hasClaimSup || !hasClaimDate);
+            const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
+            if (!hasRecripte) return false;
+            if (!hasClaimSup || !claimDate) return true;
+            return isDateToday(claimDate);
         });
     }
     const uniqueProducts = new Set();
@@ -74,8 +105,10 @@ function populateSupplierFilter() {
     let supplierItems = globalBookingData.filter(item => {
         const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
         const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-        const hasClaimDate = item['Claim Date'] && String(item['Claim Date']).trim() !== '';
-        return hasRecripte && (!hasClaimSup || !hasClaimDate);
+        const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
+        if (!hasRecripte) return false;
+        if (!hasClaimSup || !claimDate) return true;
+        return isDateToday(claimDate);
     });
     if (filterSelect) {
     const parts = new Set();
@@ -101,12 +134,18 @@ function renderSupplierTable() {
     const tableHeader = document.getElementById('supplierTableHeader');
     const tableBody = document.getElementById('supplierTableBody');
     const filterSelect = document.getElementById('supplierPartFilter');
+    const searchInput = document.getElementById('supplierSearchInput');
+    const statusFilter = document.getElementById('supplierStatusFilter');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const filterValue = filterSelect ? filterSelect.value : '';
+    const statusValue = statusFilter ? statusFilter.value : '';
     let supplierData = globalBookingData.filter(item => {
         const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
         const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-        const hasClaimDate = item['Claim Date'] && String(item['Claim Date']).trim() !== '';
-        return hasRecripte && (!hasClaimSup || !hasClaimDate);
+        const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
+        if (!hasRecripte) return false;
+        if (!hasClaimSup || !claimDate) return true;
+        return isDateToday(claimDate);
     });
     const dropdown = document.getElementById('supplierProductDropdown');
     if (dropdown && dropdown.children.length === 0) {
@@ -117,6 +156,18 @@ function renderSupplierTable() {
     }
     if (filterValue) {
         supplierData = supplierData.filter(item => item['Spare Part Name'] === filterValue);
+    }
+    if (statusValue) {
+        supplierData = supplierData.filter(item => {
+            const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+            const status = isClaimed ? 'ส่งเคลมแล้ว' : 'รอส่งเคลม';
+            return status === statusValue;
+        });
+    }
+    if (searchTerm) {
+        supplierData = supplierData.filter(item => {
+            return Object.values(item).some(val => String(val || '').toLowerCase().includes(searchTerm));
+        });
     }
     const sortedData = [...supplierData].reverse().sort((a, b) => {
         const nameA = a['Spare Part Name'] || '';
@@ -174,6 +225,22 @@ function renderSupplierTable() {
                 if (isClaimed) td.style.opacity = '0.5';
             } else if (col.key === 'CustomStatus') {
                 td.innerHTML = getComputedStatus(item);
+                const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+                if (!isClaimed) {
+                    td.style.cursor = 'pointer';
+                    td.title = 'Click to Send Claim';
+                    td.onclick = function(e) {
+                        e.stopPropagation();
+                        sendSingleClaim(item);
+                    };
+                } else {
+                    td.style.cursor = 'pointer';
+                    td.title = 'Click to Cancel Claim';
+                    td.onclick = function(e) {
+                        e.stopPropagation();
+                        cancelSingleClaim(item);
+                    };
+                }
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
                 td.style.cursor = 'pointer';
@@ -226,14 +293,161 @@ function handleSupplierCheckboxChange() {
     if (checkboxes.length > 0) bulkActions.style.display = 'flex'; else bulkActions.style.display = 'none';
 }
 
+async function sendSingleClaim(item) {
+    if (!item) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const claimSup = currentUser.IDRec || 'Unknown';
+    const now = new Date();
+    const formattedDate = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+
+    const result = await Swal.fire({
+        title: 'Confirm Send Claim?',
+        html: `Update <b>1</b> item?<br>Item: <b>${item['Spare Part Name']}</b><br><br>Date: <b>${formattedDate}</b><br>Supplier: <b>${claimSup}</b>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Send',
+        cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    // Robust Data Lookup
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
+    }
+
+    const payload = { ...item, 'Claim Date': formattedDate, 'ClaimSup': claimSup, 'user': currentUser.IDRec || 'Unknown', 'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+    
+    // Optimistic
+    item['Claim Date'] = formattedDate; 
+    item['ClaimSup'] = claimSup;
+    
+    SaveQueue.add(payload);
+
+    renderSupplierTable();
+    try {
+        populateClaimSentFilter();
+        renderClaimSentTable();
+        renderHistoryTable();
+    } catch (e) { console.error(e); }
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: `Item sent to claim` });
+}
+
+async function cancelSingleClaim(item) {
+    if (!item) return;
+
+    const result = await Swal.fire({
+        title: 'ยกเลิกการส่งเคลม?',
+        text: `คุณต้องการยกเลิกสถานะ "ส่งเคลมแล้ว" ของรายการ: ${item['Spare Part Name']}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ใช่, ยกเลิก',
+        cancelButtonText: 'ไม่',
+        confirmButtonColor: '#d33'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    // Robust Data Lookup
+    let dateReceived = item['วันที่รับซาก'];
+    let receiver = item['ผู้รับซาก'];
+    let keep = item['Keep'];
+    let ciName = item['CI Name'];
+    let problem = item['Problem'];
+    let productType = item['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+         const match = fullData.find(d => {
+             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             return dKey === targetKey;
+         });
+         if (match) {
+             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+             if (!keep) keep = getVal(match.scrap, 'Keep');
+             if (!ciName) ciName = match.fullRow['CI Name'] || '';
+             if (!problem) problem = match.fullRow['Problem'] || '';
+             if (!productType) productType = match.fullRow['Product Type'] || '';
+         }
+    }
+
+    const payload = { ...item, 'Claim Date': '', 'ClaimSup': '', 'user': currentUser.IDRec || 'Unknown', 'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+    
+    // Optimistic
+    item['Claim Date'] = ''; 
+    item['ClaimSup'] = '';
+    
+    SaveQueue.add(payload);
+
+    renderSupplierTable();
+    try {
+        populateClaimSentFilter();
+        renderClaimSentTable();
+        renderHistoryTable();
+    } catch (e) { console.error(e); }
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Claim cancelled' });
+}
+
 async function sendClaim() {
     const checkboxes = document.querySelectorAll('.supplier-checkbox:checked');
     if (checkboxes.length === 0) return;
     const filterSelect = document.getElementById('supplierPartFilter');
+    const searchInput = document.getElementById('supplierSearchInput');
+    const statusFilter = document.getElementById('supplierStatusFilter');
+
     const filterValue = filterSelect ? filterSelect.value : '';
-    let allowedData = globalBookingData.filter(item => item['Recripte'] && item['Recripte'].trim() !== '');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const statusValue = statusFilter ? statusFilter.value : '';
+
+    let allowedData = globalBookingData.filter(item => {
+        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
+        if (!hasRecripte) return false;
+        if (!hasClaimSup || !claimDate) return true;
+        return isDateToday(claimDate);
+    });
     if (supplierProductOptions.size > 0) allowedData = allowedData.filter(item => supplierProductOptions.has(item['Product']));
     if (filterValue) allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
+    if (statusValue) {
+        allowedData = allowedData.filter(item => {
+            const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+            const status = isClaimed ? 'ส่งเคลมแล้ว' : 'รอส่งเคลม';
+            return status === statusValue;
+        });
+    }
+    if (searchTerm) {
+        allowedData = allowedData.filter(item => {
+            return Object.values(item).some(val => String(val || '').toLowerCase().includes(searchTerm));
+        });
+    }
     const sortedData = [...allowedData].reverse().sort((a, b) => { const nameA = a['Spare Part Name'] || ''; const nameB = b['Spare Part Name'] || ''; return nameA.localeCompare(nameB, 'th'); });
     const selectedItems = [];
     checkboxes.forEach(cb => { const idx = parseInt(cb.value); if (sortedData[idx]) selectedItems.push(sortedData[idx]); });
@@ -248,7 +462,32 @@ async function sendClaim() {
     if (!result.isConfirmed) return;
 
     selectedItems.forEach(item => {
-        const payload = { ...item, 'Claim Date': formattedDate, 'ClaimSup': claimSup, 'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown' };
+        // Robust Data Lookup: Ensure critical fields exist before sending
+        let dateReceived = item['วันที่รับซาก'];
+        let receiver = item['ผู้รับซาก'];
+        let keep = item['Keep'];
+        let ciName = item['CI Name'];
+        let problem = item['Problem'];
+        let productType = item['Product Type'];
+
+        if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+             const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+             const match = fullData.find(d => {
+                 const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+                 return dKey === targetKey;
+             });
+             if (match) {
+                 const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+                 if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+                 if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+                 if (!keep) keep = getVal(match.scrap, 'Keep');
+                 if (!ciName) ciName = match.fullRow['CI Name'] || '';
+                 if (!problem) problem = match.fullRow['Problem'] || '';
+                 if (!productType) productType = match.fullRow['Product Type'] || '';
+             }
+        }
+
+        const payload = { ...item, 'Claim Date': formattedDate, 'ClaimSup': claimSup, 'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown', 'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
         
         // Optimistic
         item['Claim Date'] = formattedDate; 
@@ -259,6 +498,11 @@ async function sendClaim() {
 
     renderSupplierTable(); 
     handleSupplierCheckboxChange();
+    try {
+        populateClaimSentFilter();
+        renderClaimSentTable();
+        renderHistoryTable();
+    } catch (e) { console.error(e); }
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
     Toast.fire({ icon: 'success', title: `Sent ${selectedItems.length} items to claim` });
 }

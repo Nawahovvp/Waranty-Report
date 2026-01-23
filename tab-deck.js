@@ -180,7 +180,7 @@ function toggleDetailView(cardElement, tabKey, slip, targetReceiver) {
         tableWrapper.style.flex = '1';
 
         // Set Context and Render
-        currentDetailContext = { tabKey, slip, targetReceiver, currentPage: 1 };
+        currentDetailContext = { tabKey, slip, targetReceiver, currentPage: 1, searchTerm: '' };
         renderTopLevelDetailTable(tabKey, slip, targetReceiver);
     }
 }
@@ -192,10 +192,18 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     const tbody = document.getElementById(tabKey + 'TableBody');
 
     // Filter Data
-    const detailData = globalBookingData.filter(item => {
+    let detailData = globalBookingData.filter(item => {
         const itemReceiver = item['Claim Receiver'] || item.person || 'Unknown';
         return item['Booking Slip'] === slip && itemReceiver === targetReceiver;
     });
+
+    // Apply Search Filter
+    const searchTerm = (currentDetailContext && currentDetailContext.searchTerm) ? currentDetailContext.searchTerm.toLowerCase() : '';
+    if (searchTerm) {
+        detailData = detailData.filter(item => {
+            return Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm));
+        });
+    }
 
     // Pagination Setup
     const ITEMS_PER_PAGE_DECK = 20;
@@ -207,15 +215,31 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     const endIndex = startIndex + ITEMS_PER_PAGE_DECK;
     const pageData = detailData.slice(startIndex, endIndex);
 
-    // Update Header with Save Button
-    header.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <span>Booking Details: ${slip} (${targetReceiver})</span>
-            <button class="btn btn-primary bulk-save-btn" style="display: none;" onclick="saveBulkReviewItems(this)">
-                ยืนยันรับ
-            </button>
-        </div>
-    `;
+    // Update Header (Only if context changed to prevent losing input focus)
+    const currentHeaderKey = header.getAttribute('data-key');
+    const newHeaderKey = `${slip}|${targetReceiver}`;
+
+    if (currentHeaderKey !== newHeaderKey || header.innerHTML.trim() === '') {
+        header.setAttribute('data-key', newHeaderKey);
+        header.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>Booking Details: ${slip} (${targetReceiver})</span>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="text" placeholder="Search..." 
+                        style="padding: 0.35rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.875rem;"
+                        value="${currentDetailContext.searchTerm || ''}" 
+                        oninput="handleDeckDetailSearch(this)">
+                    <button class="btn btn-primary bulk-save-btn" style="display: none;" onclick="saveBulkReviewItems(this)">
+                        ยืนยันรับ
+                    </button>
+                </div>
+            </div>
+        `;
+    } else {
+        // Ensure Save button is hidden on re-render (since checkboxes are cleared)
+        const saveBtn = header.querySelector('.bulk-save-btn');
+        if (saveBtn) saveBtn.style.display = 'none';
+    }
 
     // Render Table Header
     thead.innerHTML = '';
@@ -419,6 +443,13 @@ function populateDeckPlantFilter(targetPlantCode, filterId) {
     if (currentSelection && Array.from(filterSelect.options).some(o => o.value === currentSelection)) {
         filterSelect.value = currentSelection;
     }
+}
+
+function handleDeckDetailSearch(input) {
+    if (!currentDetailContext) return;
+    currentDetailContext.searchTerm = input.value;
+    currentDetailContext.currentPage = 1;
+    renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
 }
 
 async function cancelReceiveItem(item) {

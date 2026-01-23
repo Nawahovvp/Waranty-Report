@@ -102,6 +102,7 @@ async function saveWorkOrderDetail() {
             renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
         }
     }
+    closeWorkOrderModal();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
     Toast.fire({ icon: 'success', title: 'Work Order updated' });
 }
@@ -118,6 +119,32 @@ function openEditModal(item) {
     editingItem = item;
     const currentSerial = item.fullRow['Serial Number'] || '';
     document.getElementById('editSerialInput').value = currentSerial;
+
+    const isLE = item.fullRow['Product'] === 'L&E';
+    const headerTitle = document.getElementById('editModalTitle');
+    const label = document.querySelector('#editModal label[for="editSerialInput"]');
+    const input = document.getElementById('editSerialInput');
+
+    if (headerTitle) headerTitle.textContent = isLE ? 'Edit Code Number' : 'Edit Serial Number';
+    if (label) label.textContent = isLE ? 'Code Number' : 'Serial Number';
+    if (input) input.placeholder = isLE ? 'Enter new code number' : 'Enter new serial number';
+
+    const btnExample = document.getElementById('btnExampleLE');
+    if (btnExample) {
+        btnExample.style.display = isLE ? 'inline-block' : 'none';
+        if (isLE) {
+            btnExample.textContent = 'ตัวอย่าง';
+            btnExample.style.fontSize = '1rem';
+            btnExample.style.cursor = 'help';
+            btnExample.style.textDecoration = 'underline';
+            btnExample.style.color = '#3b82f6';
+            btnExample.onclick = (e) => e.preventDefault();
+            btnExample.onmouseenter = showLETooltip;
+            btnExample.onmousemove = moveLETooltip;
+            btnExample.onmouseleave = hideLETooltip;
+        }
+    }
+
     document.getElementById('editModal').style.display = 'flex';
 }
 
@@ -132,6 +159,60 @@ function saveSerialNumber() {
     editingItem.fullRow['Serial Number'] = newSerial;
     renderTable();
     closeEditModal();
+}
+
+function showLEExample() {
+    Swal.fire({
+        imageUrl: 'LEimage.jpg',
+        imageAlt: 'L&E Example',
+        width: '900px',
+        showConfirmButton: false,
+        showCloseButton: false,
+        backdrop: false,
+        timer: 0
+    });
+}
+let tooltipImage = null;
+
+function showLETooltip(e) {
+    if (!tooltipImage) {
+        tooltipImage = document.createElement('img');
+        tooltipImage.src = 'LEimage.jpg';
+        tooltipImage.style.position = 'fixed';
+        tooltipImage.style.zIndex = '10000';
+        tooltipImage.style.maxWidth = '600px';
+        tooltipImage.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+        tooltipImage.style.borderRadius = '8px';
+        tooltipImage.style.pointerEvents = 'none';
+        document.body.appendChild(tooltipImage);
+    }
+    tooltipImage.style.display = 'block';
+    moveLETooltip(e);
+}
+
+function moveLETooltip(e) {
+    if (!tooltipImage) return;
+    const offset = 15;
+    let left = e.clientX + offset;
+    let top = e.clientY + offset;
+
+    // Adjust if overflowing right edge
+    if (left + tooltipImage.offsetWidth > window.innerWidth) {
+        left = e.clientX - tooltipImage.offsetWidth - offset;
+    }
+    // Adjust if overflowing bottom edge
+    if (top + tooltipImage.offsetHeight > window.innerHeight) {
+        top = e.clientY - tooltipImage.offsetHeight - offset;
+    }
+
+    tooltipImage.style.left = `${left}px`;
+    tooltipImage.style.top = `${top}px`;
+}
+
+function hideLETooltip() {
+    if (tooltipImage) {
+        tooltipImage.style.display = 'none';
+    }
 }
 
 function selectReceiver(btn, name) {
@@ -287,6 +368,7 @@ function saveStoreDetail() {
         btnUpdate.style.display = 'inline-block';
         btnDelete.style.display = 'inline-block';
     }
+    closeStoreModal();
 }
 
 async function deleteStoreDetail() {

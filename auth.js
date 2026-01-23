@@ -49,9 +49,8 @@ function showApp(user) {
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('mainApp').style.display = 'flex';
 
-    document.getElementById('displayUserName').innerHTML = '<span style="font-size: 28px; cursor: pointer;" title="Profile">&#128100;</span>';
-    const menuUserDisplay = document.getElementById('menuUserDisplay');
-    if (menuUserDisplay) menuUserDisplay.textContent = user['Name'] || user['IDRec'];
+    const displayUserName = document.getElementById('displayUserName');
+    if (displayUserName) displayUserName.textContent = user['Name'] || user['IDRec'];
 
     const details = [
         `ID: ${user['IDRec']}`,

@@ -178,6 +178,15 @@ function renderGenericPagination(containerId, currentPage, totalPages, onPageCha
 }
 
 function getComputedStatus(item) {
+    const action = item['Warranty Action'] || item['ActionStatus'];
+    if (action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว') {
+        let style = 'background-color: #f3f4f6; color: #1f2937;';
+        if (action === 'Sworp') style = 'background-color: #e0e7ff; color: #3730a3;';
+        else if (action === 'หมดประกัน') style = 'background-color: #ffedd5; color: #9a3412;';
+        else if (action === 'ชำรุด') style = 'background-color: #fce7f3; color: #9d174d;';
+        return `<span class="status-badge" style="${style}">${action}</span>`;
+    }
+
     if (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '') {
         return '<span class="status-badge status-claim-sent">ส่งเคลมแล้ว</span>';
     }
