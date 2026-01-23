@@ -146,12 +146,12 @@ function renderTable() {
                 td.style.fontSize = '0.875rem';
             }
 
-            if (col.key === 'Serial Number') { 
-                td.style.cursor = 'pointer'; 
-                td.style.color = 'var(--primary-color)'; 
-                td.style.fontWeight = '500'; 
-                td.title = 'Click to edit Serial Number'; 
-                td.onclick = () => openEditModal(item); 
+            if (col.key === 'Serial Number') {
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.fontWeight = '500';
+                td.title = 'Click to edit Serial Number';
+                td.onclick = () => openEditModal(item);
 
                 // Validation for Claim Insurance
                 if (isSerialInvalidForClaim(item)) {
@@ -163,9 +163,9 @@ function renderTable() {
             if (col.key === 'Person' || col.source === 'P') { td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Person'; td.onclick = () => openMainPersonModal(item); }
             if (col.key === 'Mobile' || col.source === 'T' || col.key === 'Phone') {
                 td.style.cursor = 'pointer'; td.style.color = 'var(--primary-color)'; td.style.fontWeight = '500'; td.title = 'Click to edit Mobile'; td.onclick = () => openMainMobileModal(item);
-                if (!value) { 
-                    td.innerText = '[Add]'; 
-                    td.style.fontSize = '0.875rem'; 
+                if (!value) {
+                    td.innerText = '[Add]';
+                    td.style.fontSize = '0.875rem';
                     if (!item.status) {
                         if (!isLE) {
                             td.classList.add('invalid-serial');
@@ -252,7 +252,7 @@ async function processBulkAction(actionName) {
     // Note: Full implementation would be lengthy, assuming user has it or I should provide full.
     // I will provide the rest of the function in next block if needed, but for brevity I'll stop here as the pattern is clear.
     // Wait, user asked for "remaining files". I should provide full content.
-    
+
     const result = await Swal.fire({ title: 'ยืนยันการบันทึก?', text: `คุณต้องการบันทึก ${selectedItems.length} รายการ ด้วยสถานะ "${actionName}" ใช่หรือไม่?`, icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก' });
     if (!result.isConfirmed) return;
 
@@ -261,11 +261,11 @@ async function processBulkAction(actionName) {
     // --- OPTIMISTIC UPDATE & QUEUE ---
     selectedItems.forEach(item => {
         const getVal = (obj, keyName) => {
-             if (!obj) return '';
-             if (obj[keyName]) return obj[keyName];
-             const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
-             const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
-             return found ? obj[found] : '';
+            if (!obj) return '';
+            if (obj[keyName]) return obj[keyName];
+            const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
+            const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
+            return found ? obj[found] : '';
         };
 
         const getRobustVal = (itm, keyName) => {
@@ -285,7 +285,8 @@ async function processBulkAction(actionName) {
             return '';
         };
 
-        const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': actionName, 'Qty': item.scrap['qty'] || '', 'Serial Number': item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '',
+        const payload = {
+            ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': actionName, 'Qty': item.scrap['qty'] || '', 'Serial Number': item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (actionName === 'เคลมประกัน') ? (item.person || '') : '',
             'วันที่รับซาก': getRobustVal(item, 'วันที่รับซาก'),
             'ผู้รับซาก': getRobustVal(item, 'ผู้รับซาก'),
             'Keep': getRobustVal(item, 'Keep'),
@@ -293,12 +294,12 @@ async function processBulkAction(actionName) {
             'Problem': item.fullRow['Problem'] || getVal(item.fullRow, 'Problem'),
             'Product Type': item.fullRow['Product Type'] || getVal(item.fullRow, 'Product Type')
         };
-        
+
         // Explicitly set Key to avoid Unknown in logs/backend
         payload['Key'] = (getVal(item.scrap, 'work order') || '') + (getVal(item.scrap, 'Spare Part Code') || '');
-        
+
         delete payload['Values'];
-        
+
         // Update Local State Immediately
         item.status = actionName;
         item.fullRow['ActionStatus'] = actionName;
@@ -311,7 +312,7 @@ async function processBulkAction(actionName) {
     selectedItems.forEach(item => {
         const itemPayload = { ...item.scrap, ...item.fullRow, 'Qty': item.scrap['qty'], 'Phone': item.technicianPhone };
         const targetKey = (itemPayload['work order'] || '') + (itemPayload['Spare Part Code'] || '');
-        
+
         // Preserve existing data if available
         const existingRow = globalBookingData.find(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey === targetKey; });
         const preservedSlip = existingRow ? (existingRow['Booking Slip'] || '') : '';
@@ -322,12 +323,13 @@ async function processBulkAction(actionName) {
         globalBookingData = globalBookingData.filter(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey !== targetKey; });
         if (actionName === 'เคลมประกัน') {
             const getVal = (obj, keyName) => {
-                 if (obj[keyName]) return obj[keyName];
-                 const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
-                 return found ? obj[found] : '';
+                if (obj[keyName]) return obj[keyName];
+                const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+                return found ? obj[found] : '';
             };
 
-            const newBookingRow = { 'Work Order': itemPayload['work order'], 'Spare Part Code': itemPayload['Spare Part Code'], 'Spare Part Name': itemPayload['Spare Part Name'], 'Old Material Code': itemPayload['old material code'], 'Qty': itemPayload['Qty'], 'Serial Number': itemPayload['Serial Number'], 'Store Code': itemPayload['Store Code'], 'Store Name': itemPayload['Store Name'], 'รหัสช่าง': itemPayload['รหัสช่าง'], 'ชื่อช่าง': itemPayload['ชื่อช่าง'], 'Mobile': itemPayload['Phone'], 'Plant': itemPayload['plant'], 'Claim Receiver': preservedReceiver || (item.person || ''), 'person': item.person, 'Product': itemPayload['Product'], 'Warranty Action': actionName, 'Recorder': currentUser.IDRec || 'Unknown', 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
+            const newBookingRow = {
+                'Work Order': itemPayload['work order'], 'Spare Part Code': itemPayload['Spare Part Code'], 'Spare Part Name': itemPayload['Spare Part Name'], 'Old Material Code': itemPayload['old material code'], 'Qty': itemPayload['Qty'], 'Serial Number': itemPayload['Serial Number'], 'Store Code': itemPayload['Store Code'], 'Store Name': itemPayload['Store Name'], 'รหัสช่าง': itemPayload['รหัสช่าง'], 'ชื่อช่าง': itemPayload['ชื่อช่าง'], 'Mobile': itemPayload['Phone'], 'Plant': itemPayload['plant'], 'Claim Receiver': preservedReceiver || (item.person || ''), 'person': item.person, 'Product': itemPayload['Product'], 'Warranty Action': actionName, 'Recorder': currentUser.IDRec || 'Unknown', 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
                 'วันที่รับซาก': getVal(item.scrap, 'วันที่รับซาก'),
                 'ผู้รับซาก': getVal(item.scrap, 'ผู้รับซาก'),
                 'Keep': getVal(item.scrap, 'Keep'),
@@ -343,21 +345,21 @@ async function processBulkAction(actionName) {
     try { renderDeckView('0301', 'navaNakornDeck', 'navanakorn'); renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi'); populateSupplierFilter(); renderSupplierTable(); populateClaimSentFilter(); renderClaimSentTable(); renderHistoryTable(); } catch (err) { console.warn('Error refreshing other tabs:', err); }
     renderTable();
     toggleAllCheckboxes({ checked: false });
-    
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
-    Toast.fire({ icon: 'success', title: `Added ${selectedItems.length} items to save queue` });
+
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: false });
+    Toast.fire({ icon: 'success', title: `${selectedItems.length}`, text: 'Saved' });
 }
 
 function sendDatatoGAS(item) {
     if (!GAS_API_URL) { alert("Please configure the Google Apps Script URL."); return; }
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    
+
     const getVal = (obj, keyName) => {
-         if (!obj) return '';
-         if (obj[keyName]) return obj[keyName];
-         const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
-         const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
-         return found ? obj[found] : '';
+        if (!obj) return '';
+        if (obj[keyName]) return obj[keyName];
+        const cleanKey = keyName.replace(/\s+/g, '').toLowerCase();
+        const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey);
+        return found ? obj[found] : '';
     };
 
     const getRobustVal = (itm, keyName) => {
@@ -377,7 +379,8 @@ function sendDatatoGAS(item) {
         return '';
     };
 
-    const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', 'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ? (document.getElementById('store_receiver').value || item.person || '') : '',
+    const payload = {
+        ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Qty': document.getElementById('store_qty').value || item.scrap['qty'] || '', 'Serial Number': document.getElementById('store_serial').value || item.fullRow['Serial Number'] || '', 'Phone': item.technicianPhone || '', 'รหัสช่าง': item.scrap['รหัสช่าง'] || '', 'ชื่อช่าง': item.scrap['ชื่อช่าง'] || '', 'Claim Receiver': (item.fullRow['ActionStatus'] === 'เคลมประกัน') ? (document.getElementById('store_receiver').value || item.person || '') : '',
         'วันที่รับซาก': getRobustVal(item, 'วันที่รับซาก'),
         'ผู้รับซาก': getRobustVal(item, 'ผู้รับซาก'),
         'Keep': getRobustVal(item, 'Keep'),
@@ -385,7 +388,7 @@ function sendDatatoGAS(item) {
         'Problem': item.fullRow['Problem'] || getVal(item.fullRow, 'Problem'),
         'Product Type': item.fullRow['Product Type'] || getVal(item.fullRow, 'Product Type')
     };
-    
+
     // Explicitly set Key
     payload['Key'] = (getVal(item.scrap, 'work order') || '') + (getVal(item.scrap, 'Spare Part Code') || '');
 
@@ -394,10 +397,10 @@ function sendDatatoGAS(item) {
     // --- OPTIMISTIC UPDATE (Update Local Data Immediately) ---
     item.status = payload['ActionStatus'];
     item.fullRow['user'] = payload['user'];
-    
+
     // Update Global Booking Data locally
     const targetKey = (payload['work order'] || '') + (payload['Spare Part Code'] || '');
-    
+
     // Preserve existing data if available
     const existingRow = globalBookingData.find(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey === targetKey; });
     const preservedSlip = existingRow ? (existingRow['Booking Slip'] || '') : '';
@@ -405,15 +408,16 @@ function sendDatatoGAS(item) {
     const preservedPlantCenter = existingRow ? (existingRow['Plantcenter'] || '') : '';
 
     globalBookingData = globalBookingData.filter(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey !== targetKey; });
-    
+
     if (payload['ActionStatus'] === 'เคลมประกัน') {
         const getVal = (obj, keyName) => {
-             if (obj[keyName]) return obj[keyName];
-             const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
-             return found ? obj[found] : '';
+            if (obj[keyName]) return obj[keyName];
+            const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+            return found ? obj[found] : '';
         };
 
-        const newBookingRow = { 'Work Order': payload['work order'], 'Spare Part Code': payload['Spare Part Code'], 'Spare Part Name': payload['Spare Part Name'], 'Old Material Code': payload['old material code'], 'Qty': payload['Qty'], 'Serial Number': payload['Serial Number'], 'Store Code': payload['Store Code'], 'Store Name': payload['Store Name'], 'รหัสช่าง': payload['รหัสช่าง'], 'ชื่อช่าง': payload['ชื่อช่าง'], 'Mobile': payload['Phone'], 'Plant': payload['plant'], 'Claim Receiver': payload['Claim Receiver'], 'person': item.person, 'Product': payload['Product'], 'Warranty Action': payload['ActionStatus'], 'Recorder': payload['user'], 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
+        const newBookingRow = {
+            'Work Order': payload['work order'], 'Spare Part Code': payload['Spare Part Code'], 'Spare Part Name': payload['Spare Part Name'], 'Old Material Code': payload['old material code'], 'Qty': payload['Qty'], 'Serial Number': payload['Serial Number'], 'Store Code': payload['Store Code'], 'Store Name': payload['Store Name'], 'รหัสช่าง': payload['รหัสช่าง'], 'ชื่อช่าง': payload['ชื่อช่าง'], 'Mobile': payload['Phone'], 'Plant': payload['plant'], 'Claim Receiver': payload['Claim Receiver'], 'person': item.person, 'Product': payload['Product'], 'Warranty Action': payload['ActionStatus'], 'Recorder': payload['user'], 'Timestamp': new Date().toISOString(), 'Booking Slip': preservedSlip, 'Booking Date': preservedDate, 'Plantcenter': preservedPlantCenter,
             'วันที่รับซาก': getVal(item.scrap, 'วันที่รับซาก'),
             'ผู้รับซาก': getVal(item.scrap, 'ผู้รับซาก'),
             'Keep': getVal(item.scrap, 'Keep'),
@@ -425,8 +429,8 @@ function sendDatatoGAS(item) {
     }
 
     // Refresh UI immediately
-    populateBookingFilter(); 
-    renderBookingTable(); 
+    populateBookingFilter();
+    renderBookingTable();
     renderTable();
 
     // --- BACKGROUND SAVE ---

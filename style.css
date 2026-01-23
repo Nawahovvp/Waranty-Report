@@ -149,21 +149,52 @@ body {
 }
 
 header {
-    padding: 0.5rem 0.5rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    border-bottom: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: var(--surface-color);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     position: relative;
     gap: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.header-title-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
 h1 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    flex: 1;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    letter-spacing: -0.025em;
+}
+
+.page-subtitle {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.page-subtitle::before {
+    content: '▸';
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 /* Menu Dropdown */
@@ -172,23 +203,28 @@ h1 {
 }
 
 .menu-btn {
-    background: white;
-    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     cursor: pointer;
     padding: 8px;
     border-radius: 8px;
-    color: var(--text-primary);
+    color: white;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: blur(10px);
 }
 
 .menu-btn:hover {
-    background-color: var(--hover-color);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.menu-btn svg {
+    stroke: white;
 }
 
 .dropdown-menu {
@@ -859,4 +895,168 @@ tbody tr:hover {
     /* gray-100 */
     color: #374151;
     /* gray-700 */
+}
+
+/* Hamburger Button */
+.hamburger-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    color: white;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    backdrop-filter: blur(10px);
+}
+
+.hamburger-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.hamburger-btn svg {
+    stroke: white;
+}
+
+/* Header Save Queue Status */
+.header-save-status {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    position: relative;
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.header-save-status.saving {
+    display: flex;
+    background: rgba(249, 115, 22, 0.8);
+    /* Orange */
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+}
+
+.header-save-status.saving::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: #fff;
+    border-right-color: rgba(255, 255, 255, 0.5);
+    animation: spin 1s linear infinite;
+}
+
+.header-save-status.failed {
+    display: flex;
+    background: #ef4444;
+    /* Red */
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}/* SweetAlert2 Toast - Circular Style */
+.swal2-toast {
+    min-width: 80px !important;
+    min-height: 80px !important;
+    border-radius: 50% !important;
+    padding: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.swal2-toast .swal2-title {
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+    max-width: 100% !important;
+}
+
+.swal2-toast .swal2-icon {
+    width: 24px !important;
+    height: 24px !important;
+    margin: 0 0 0.25rem 0 !important;
+    border-width: 2px !important;
+}
+
+.swal2-toast .swal2-icon-content {
+    font-size: 1rem !important;
+}
+
+.swal2-toast .swal2-timer-progress-bar {
+    display: none !important;
+}
+
+.swal2-toast.swal2-show {
+    animation: swal2-toast-show 0.3s !important;
+}
+
+.swal2-toast.swal2-hide {
+    animation: swal2-toast-hide 0.3s !important;
+}
+
+@keyframes swal2-toast-show {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes swal2-toast-hide {
+    0% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0) rotate(180deg);
+        opacity: 0;
+    }
 }

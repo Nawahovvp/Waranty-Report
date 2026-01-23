@@ -98,26 +98,26 @@ async function processBookingAction(destination, targetPlantCode) {
         let productType = item['Product Type'];
 
         if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-             const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             const match = fullData.find(d => {
-                 const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-                 return dKey === targetKey;
-             });
-             if (match) {
-                 const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-                 if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-                 if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-                 if (!keep) keep = getVal(match.scrap, 'Keep');
-                 if (!ciName) ciName = match.fullRow['CI Name'] || '';
-                 if (!problem) problem = match.fullRow['Problem'] || '';
-                 if (!productType) productType = match.fullRow['Product Type'] || '';
-             }
+            const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            const match = fullData.find(d => {
+                const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+                return dKey === targetKey;
+            });
+            if (match) {
+                const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+                if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+                if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+                if (!keep) keep = getVal(match.scrap, 'Keep');
+                if (!ciName) ciName = match.fullRow['CI Name'] || '';
+                if (!problem) problem = match.fullRow['Problem'] || '';
+                if (!productType) productType = match.fullRow['Product Type'] || '';
+            }
         }
 
-        const payload = { 
+        const payload = {
             ...item,
-            'Booking Slip': bookingSlip, 
-            'Booking Date': formattedDate, 
+            'Booking Slip': bookingSlip,
+            'Booking Date': formattedDate,
             'Plantcenter': plantCenterCode,
             'user': currentUser.IDRec || 'Unknown',
             'วันที่รับซาก': dateReceived || '',
@@ -128,18 +128,18 @@ async function processBookingAction(destination, targetPlantCode) {
             'Product Type': productType || ''
         };
         payload['Key'] = (item['Work Order'] || '') + (item['Spare Part Code'] || '');
-        
+
         // Optimistic Update
-        item['Booking Slip'] = bookingSlip; 
-        item['Booking Date'] = formattedDate; 
+        item['Booking Slip'] = bookingSlip;
+        item['Booking Date'] = formattedDate;
         item['Plantcenter'] = plantCenterCode;
         SaveQueue.add(payload);
     });
 
     selectedBookingKeys.clear();
     renderBookingTable();
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
-    Toast.fire({ icon: 'success', title: `Added ${selectedItems.length} items to save queue` });
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: false });
+    Toast.fire({ icon: 'success', title: `${selectedItems.length}`, text: 'Saved' });
 }
 
 async function sendToNavaNakorn() { await processBookingAction('ส่งคลังนวนคร', '0301'); }
@@ -190,13 +190,13 @@ window.addEventListener('click', function (e) {
 function populateBookingFilter() {
     const filterSelect = document.getElementById('bookingPartFilter');
     if (filterSelect) {
-    filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
-    if (!globalBookingData || globalBookingData.length === 0) return;
-    const parts = new Set();
-    globalBookingData.forEach(row => { const name = row['Spare Part Name']; if (name) parts.add(name); });
-    Array.from(parts).sort().forEach(part => {
-        const option = document.createElement('option'); option.value = part; option.textContent = part; filterSelect.appendChild(option);
-    });
+        filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+        if (!globalBookingData || globalBookingData.length === 0) return;
+        const parts = new Set();
+        globalBookingData.forEach(row => { const name = row['Spare Part Name']; if (name) parts.add(name); });
+        Array.from(parts).sort().forEach(part => {
+            const option = document.createElement('option'); option.value = part; option.textContent = part; filterSelect.appendChild(option);
+        });
     }
     populateBookingReceiverFilter();
 }

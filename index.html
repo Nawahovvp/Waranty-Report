@@ -333,7 +333,14 @@
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
-                <h1>บันทึกข้อมูล</h1>
+                <div class="header-title-container">
+                    <h1>บันทึกข้อมูล</h1>
+                    <span id="currentPageTitle" class="page-subtitle">บันทึกข้อมูล (Save Data)</span>
+                </div>
+                <!-- Save Queue Status (Moved to header) -->
+                <div id="saveQueueStatus" class="header-save-status">
+                    <span id="saveQueueText"></span>
+                </div>
                 <div class="menu-container">
                     <button class="menu-btn" onclick="toggleMenu()" aria-label="User Menu">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -431,11 +438,6 @@
                         <span>ประวัติการเคลม</span>
                     </a>
                 </nav>
-                <!-- Background Save Status (Moved to sidebar) -->
-                <div id="saveQueueStatus" class="sidebar-status">
-                    <div class="spinner-small"></div>
-                    <span id="saveQueueText">Saving data...</span>
-                </div>
             </div>
 
             <!-- Tab 1: Main Data (Existing Content) -->

@@ -110,25 +110,18 @@ const SaveQueue = {
         if (pending === 0 && failed === 0 && !this.isProcessing) {
             container.style.display = 'none';
         } else {
-            container.style.display = 'flex';
-            const spinner = container.querySelector('.spinner-small');
+            container.style.display = 'flex'; // Handled by classes mostly, but ensure visibility
             
             if (failed > 0) {
-                container.style.backgroundColor = '#fee2e2'; // Red
-                container.style.color = '#991b1b';
-                container.style.borderColor = '#fecaca';
-                text.innerHTML = `Failed: ${failed} <span style="text-decoration: underline; cursor: pointer; margin-left: 8px; font-weight: bold;" onclick="SaveQueue.retryFailed()">Retry All</span>`;
-                if (spinner) spinner.style.display = (this.isProcessing || pending > 0) ? 'block' : 'none';
-                if (spinner) spinner.style.borderColor = '#991b1b';
-                if (spinner) spinner.style.borderTopColor = 'transparent';
+                container.className = 'header-save-status failed';
+                text.textContent = failed;
+                container.title = `Failed: ${failed} items. Click to Retry.`;
+                container.onclick = () => SaveQueue.retryFailed();
             } else {
-                container.style.backgroundColor = '#fff7ed'; // Orange
-                container.style.color = '#c2410c';
-                container.style.borderColor = '#ffedd5';
-                text.textContent = `Saving... (${pending} pending)`;
-                if (spinner) spinner.style.display = 'block';
-                if (spinner) spinner.style.borderColor = '#c2410c';
-                if (spinner) spinner.style.borderTopColor = 'transparent';
+                container.className = 'header-save-status saving';
+                text.textContent = pending;
+                container.title = `Saving... ${pending} items pending`;
+                container.onclick = null;
             }
         }
     }
