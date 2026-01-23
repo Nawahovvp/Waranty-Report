@@ -1,9 +1,9 @@
-    const cards = deckContainer.getElementsByClassName('deck-card');
+const cards = deckContainer.getElementsByClassName('deck-card');
 
-    // Show all cards
-    Array.from(cards).forEach(c => c.style.display = 'flex');
+// Show all cards
+Array.from(cards).forEach(c => c.style.display = 'flex');
 
-    document.getElementById(tabKey + 'TableWrapper').style.display = 'none';
+document.getElementById(tabKey + 'TableWrapper').style.display = 'none';
 
 
 function toggleDetailView(cardElement, tabKey, slip, targetReceiver) {
@@ -72,7 +72,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     // We will control it via traversing up from checkbox.
     header.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <span>Booking Details: ${slip} (${targetReceiver})</span>
+            <span style="font-weight: bold; font-size: 1.1rem; color: #1e293b;">รายการอะไหล่ส่งเคลม: ${slip} (${targetReceiver})</span>
             <button class="btn btn-primary bulk-save-btn" style="display: none;" onclick="saveBulkReviewItems(this)">
                 Save Selected
             </button>
@@ -231,7 +231,9 @@ async function saveBulkReviewItems(btnElement) {
     Swal.fire({
         title: 'Saving...',
         html: `Updating <b>1</b> / ${selectedItems.length} items...`,
-        allowOutsideClick: false,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
         didOpen: () => Swal.showLoading()
     });
 
@@ -267,12 +269,17 @@ async function saveBulkReviewItems(btnElement) {
         }
     }
 
-    Swal.fire({
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+    });
+    Toast.fire({
         icon: 'success',
-        title: 'Updated',
-        text: `Success: ${successCount}, Failed: ${failCount}`,
-        timer: 1500,
-        showConfirmButton: false
+        title: 'Updated Successfully',
+        text: `Success: ${successCount}, Failed: ${failCount}`
     });
 
     // Re-render table and DECK to update counts
@@ -343,11 +350,13 @@ async function saveWorkOrderDetail() {
         'ActionStatus': newAction
     };
 
-    // UI Feedback: Saving...
+    // UI Feedback: Saving... (Toast)
     Swal.fire({
         title: 'Saving...',
         text: 'Updating Work Order details...',
-        allowOutsideClick: false,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
         didOpen: () => Swal.showLoading()
     });
 
@@ -377,12 +386,17 @@ async function saveWorkOrderDetail() {
 
         closeWorkOrderModal();
 
-        Swal.fire({
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+        });
+        Toast.fire({
             icon: 'success',
             title: 'Saved!',
-            text: 'Work Order updated successfully.',
-            timer: 1500,
-            showConfirmButton: false
+            text: 'Work Order updated successfully.'
         });
 
     } catch (error) {

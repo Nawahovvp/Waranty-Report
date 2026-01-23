@@ -306,7 +306,7 @@
                 </svg>
             </button>
             <div class="modal-header" id="bookingDetailHeader">
-                Booking Details
+                รายการอะไหล่ส่งเคลม
             </div>
             <div class="table-container" style="overflow-y: auto; flex: 1;">
                 <table id="bookingDetailTable">
@@ -707,6 +707,15 @@
             <!-- TAB 6: Claim Sent View -->
             <div id="tab-content-claimSent" class="tab-content">
                 <div class="filter-bar">
+                    <select id="claimSentPartFilter" class="filter-select"
+                        onchange="currentClaimSentPage=1; renderClaimSentTable()">
+                        <option value="">All Spare Parts</option>
+                    </select>
+                    <div style="flex: 1;"></div>
+                    <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Search:</label>
+                    <input type="text" id="claimSentSearchInput" placeholder="Search All Columns..."
+                        style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem; min-width: 250px;"
+                        oninput="currentClaimSentPage=1; renderClaimSentTable()">
                 </div>
                 <div class="table-container">
                     <table id="claimSentTable">
@@ -816,13 +825,25 @@
                         </div>
 
                         <div class="modal-section-title" style="margin-bottom: 0.5rem; font-size: 0.8rem;">Action</div>
-                        <div class="status-btn-group" style="margin-top: 0;">
-                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'เคลมประกัน')"
-                                style="padding: 0.35rem; font-size: 0.8rem;">เคลมประกัน</button>
-                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'หมดประกัน')"
-                                style="padding: 0.35rem; font-size: 0.8rem;">หมดประกัน</button>
-                            <button type="button" class="status-btn" onclick="selectWorkOrderAction(this, 'ชำรุด')"
-                                style="padding: 0.35rem; font-size: 0.8rem;">ชำรุด</button>
+                        <div class="status-card-group">
+                            <div class="status-card" data-type="claim"
+                                onclick="selectWorkOrderAction(this, 'เคลมประกัน')">
+                                <div class="icon">📝</div>
+                                <div class="label">เคลมประกัน</div>
+                            </div>
+                            <div class="status-card" data-type="expired"
+                                onclick="selectWorkOrderAction(this, 'หมดประกัน')">
+                                <div class="icon">⏳</div>
+                                <div class="label">หมดประกัน</div>
+                            </div>
+                            <div class="status-card" data-type="damaged" onclick="selectWorkOrderAction(this, 'ชำรุด')">
+                                <div class="icon">💥</div>
+                                <div class="label">ชำรุด</div>
+                            </div>
+                            <div class="status-card" data-type="sworp" onclick="selectWorkOrderAction(this, 'Sworp')">
+                                <div class="icon">🔄</div>
+                                <div class="label">Sworp</div>
+                            </div>
                         </div>
                         <input type="hidden" id="woDetail_ActionValue">
                     </div>

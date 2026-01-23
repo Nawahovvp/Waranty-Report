@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
     --bg-color: #f8fafc;
@@ -994,7 +994,9 @@ tbody tr:hover {
     100% {
         transform: rotate(360deg);
     }
-}/* SweetAlert2 Toast - Circular Style */
+}
+
+/* SweetAlert2 Toast - Circular Style */
 .swal2-toast {
     min-width: 80px !important;
     min-height: 80px !important;
@@ -1060,3 +1062,145 @@ tbody tr:hover {
         opacity: 0;
     }
 }
+.notification-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%; /* Circular */
+    color: white;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    width: 42px;
+    height: 42px;
+    position: relative;
+    margin-right: 0.5rem;
+}
+
+.notification-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #ef4444; /* Red */
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+
+/* Canva-like Action Buttons */
+.status-card-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.status-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    border-radius: 12px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    height: 100px;
+}
+
+.status-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.status-card.active {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px white, 0 0 0 4px var(--active-color);
+}
+
+.status-card .icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.status-card:hover .icon {
+    transform: scale(1.1);
+}
+
+.status-card .label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Card Variants */
+.status-card[data-type='claim'] { --active-color: #22c55e; }
+.status-card[data-type='claim'].active { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #166534; }
+.status-card[data-type='claim'] .icon { color: #22c55e; }
+.status-card[data-type='claim'].active .icon { color: #15803d; }
+
+.status-card[data-type='expired'] { --active-color: #f97316; }
+.status-card[data-type='expired'].active { background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); color: #9a3412; }
+.status-card[data-type='expired'] .icon { color: #f97316; }
+.status-card[data-type='expired'].active .icon { color: #c2410c; }
+
+.status-card[data-type='damaged'] { --active-color: #ec4899; }
+.status-card[data-type='damaged'].active { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); color: #9d174d; }
+.status-card[data-type='damaged'] .icon { color: #ec4899; }
+.status-card[data-type='damaged'].active .icon { color: #be185d; }
+
+.status-card[data-type='sworp'] { --active-color: #6366f1; }
+.status-card[data-type='sworp'].active { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #3730a3; }
+.status-card[data-type='sworp'] .icon { color: #6366f1; }
+.status-card[data-type='sworp'].active .icon { color: #4338ca; }
+
+
+.header-title-container h1 {
+    display: none;
+}
+
+
+/* Compact Toast Style */
+div.swal2-popup.swal2-toast {
+    border-radius: 4px !important;
+    padding: 0.75rem 1rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+div.swal2-popup.swal2-toast .swal2-title {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+    color: #1e293b !important;
+}
+
+div.swal2-popup.swal2-toast .swal2-icon {
+    width: 1.5em !important;
+    height: 1.5em !important;
+    margin: 0 0.5rem 0 0 !important;
+    border-width: 2px !important;
+}
+

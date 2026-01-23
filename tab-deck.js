@@ -17,7 +17,7 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
         const slip = item['Booking Slip'];
         const pcCode = String(item['Plantcenter'] || '').trim();
         const normalize = (s) => s.replace(/^0+/, '');
-        
+
         if (!slip) return;
         if (normalize(pcCode) !== normalize(targetPlantCode)) return;
         if (selectedPlant && item['Plant'] !== selectedPlant) return;
@@ -92,7 +92,7 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
         card.style.cursor = 'pointer';
         card.setAttribute('data-key', key);
         card.onclick = function () { toggleDetailView(this, tabKey, slip, receiver); };
-        
+
         card.innerHTML = `
             <div class="card-header" style="display: block;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
@@ -116,25 +116,25 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
 function backToDeck(tabKey) {
     const deckContainer = document.getElementById(tabKey === 'navanakorn' ? 'navaNakornDeck' : 'vibhavadiDeck');
     if (!deckContainer) return;
-    
+
     const cards = deckContainer.getElementsByClassName('deck-card');
     Array.from(cards).forEach(c => c.style.display = 'flex');
-    
+
     const tableWrapper = document.getElementById(tabKey + 'TableWrapper');
     if (tableWrapper) tableWrapper.style.display = 'none';
-    
+
     const deckWrapper = document.getElementById(tabKey + 'DeckWrapper');
     if (deckWrapper) {
         deckWrapper.style.height = '';
         deckWrapper.style.flex = '1';
     }
-    
+
     // Remove active state from cards
     Array.from(cards).forEach(c => {
         c.classList.remove('active-card');
         c.style.border = '1px solid var(--border-color)';
     });
-    
+
     currentDetailContext = null;
 }
 
@@ -209,7 +209,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     const ITEMS_PER_PAGE_DECK = 20;
     const currentPage = (currentDetailContext && currentDetailContext.currentPage) ? currentDetailContext.currentPage : 1;
     const totalPages = Math.ceil(detailData.length / ITEMS_PER_PAGE_DECK);
-    
+
     // Slice Data
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE_DECK;
     const endIndex = startIndex + ITEMS_PER_PAGE_DECK;
@@ -223,7 +223,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
         header.setAttribute('data-key', newHeaderKey);
         header.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <span>Booking Details: ${slip} (${targetReceiver})</span>
+                <span style="font-weight: bold; font-size: 1.1rem; color: #1e293b;">รายการอะไหล่ส่งเคลม: ${slip} (${targetReceiver})</span>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <input type="text" placeholder="Search..." 
                         style="padding: 0.35rem 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.875rem;"
@@ -246,7 +246,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     BOOKING_COLUMNS.forEach(col => {
         const th = document.createElement('th');
         if (col.key === 'checkbox') {
-            th.innerHTML = '<input type="checkbox" class="select-all-review" onclick="toggleAllReviewCheckboxes(this)">';
+            th.innerHTML = `<input type="checkbox" class="select-all-review" onclick="toggleAllReviewCheckboxes(this)" ${isReviewSelectAll ? 'checked' : ''}>`;
         } else {
             th.innerHTML = col.header;
         }
@@ -259,74 +259,96 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     if (pageData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="' + BOOKING_COLUMNS.length + '" style="text-align:center;">No data found.</td></tr>';
     } else {
-    pageData.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        BOOKING_COLUMNS.forEach(col => {
-            const td = document.createElement('td');
-            let value = item[col.key] || '';
+        pageData.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            BOOKING_COLUMNS.forEach(col => {
+                const td = document.createElement('td');
+                let value = item[col.key] || '';
 
-            if (col.key === 'checkbox') {
-                const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
-                const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-                const disabledAttr = hasRecripte ? 'disabled' : '';
+                if (col.key === 'checkbox') {
+                    const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
+                    const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+                    const disabledAttr = hasRecripte ? 'disabled' : '';
+                    // If Global Select All is active, and item is not received (In Transit), check it.
+                    const contextChecked = (isReviewSelectAll && !hasRecripte) ? 'checked' : '';
 
-                td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${startIndex + index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr}>`;
-                td.style.textAlign = 'center';
-            } else if (col.key === 'CustomStatus') {
-                td.innerHTML = getComputedStatus(item);
-                const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-                const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+                    td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${startIndex + index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr} ${contextChecked}>`;
+                    td.style.textAlign = 'center';
+                } else if (col.key === 'CustomStatus') {
+                    td.innerHTML = getComputedStatus(item);
+                    const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+                    const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
 
-                if (!hasRecripte) {
-                    td.style.cursor = 'pointer';
-                    td.title = 'กดเพื่อยืนยันรับ';
-                    td.onclick = function (e) {
-                        e.stopPropagation();
-                        confirmReceiveItem(item);
-                    };
-                } else if (hasRecripte && !hasClaimSup) {
-                    td.style.cursor = 'pointer';
-                    td.title = 'กดเพื่อยกเลิกการรับ';
-                    td.onclick = function (e) {
-                        e.stopPropagation();
-                        cancelReceiveItem(item);
-                    };
-                }
-            } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
-                td.textContent = value;
-                td.style.cursor = 'pointer';
-                td.style.color = 'var(--primary-color)';
-                td.style.textDecoration = 'underline';
-                td.onclick = function (e) {
-                    e.stopPropagation();
-                    openWorkOrderModal(item);
-                };
-            } else {
-                if (col.key === 'Timestamp' && value) {
-                    const date = new Date(value);
-                    if (!isNaN(date.getTime())) {
-                        value = date.toLocaleString();
+                    if (!hasRecripte) {
+                        td.style.cursor = 'pointer';
+                        td.title = 'กดเพื่อยืนยันรับ';
+                        td.onclick = function (e) {
+                            e.stopPropagation();
+                            confirmReceiveItem(item);
+                        };
+                    } else if (hasRecripte && !hasClaimSup) {
+                        td.style.cursor = 'pointer';
+                        td.title = 'กดเพื่อยกเลิกการรับ';
+                        td.onclick = function (e) {
+                            e.stopPropagation();
+                            cancelReceiveItem(item);
+                        };
                     }
+                } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
+                    td.textContent = value;
+                    td.style.cursor = 'pointer';
+                    td.style.color = 'var(--primary-color)';
+                    td.style.textDecoration = 'underline';
+                    td.onclick = function (e) {
+                        e.stopPropagation();
+                        openWorkOrderModal(item);
+                    };
+                } else {
+                    if (col.key === 'Timestamp' && value) {
+                        const date = new Date(value);
+                        if (!isNaN(date.getTime())) {
+                            value = date.toLocaleString();
+                        }
+                    }
+                    if (col.key === 'Booking Date' && value) {
+                        let s = String(value);
+                        if (s.indexOf('T') > -1) s = s.split('T')[0];
+                        if (s.indexOf(' ') > -1) s = s.split(' ')[0];
+                        value = s;
+                    }
+                    td.textContent = value;
                 }
-                if (col.key === 'Booking Date' && value) {
-                    let s = String(value);
-                    if (s.indexOf('T') > -1) s = s.split('T')[0];
-                    if (s.indexOf(' ') > -1) s = s.split(' ')[0];
-                    value = s;
-                }
-                td.textContent = value;
-            }
-            tr.appendChild(td);
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
         });
-        tbody.appendChild(tr);
-    });
+    }
+
+    const saveBtn = header.querySelector('.bulk-save-btn');
+    if (saveBtn) {
+        if (isReviewSelectAll) {
+            saveBtn.style.display = 'block';
+            saveBtn.textContent = 'ยืนยันรับ (ทั้งหมด / All)';
+        } else {
+            const hasChecked = tbody.querySelector('.review-checkbox:checked');
+            if (hasChecked) {
+                const count = tbody.querySelectorAll('.review-checkbox:checked').length;
+                saveBtn.style.display = 'block';
+                saveBtn.textContent = `ยืนยันรับ (${count})`;
+            } else {
+                saveBtn.style.display = 'none';
+            }
+        }
     }
 
     const paginationId = tabKey === 'navanakorn' ? 'navanakornPagination' : 'vibhavadiPagination';
     renderGenericPagination(paginationId, currentPage, totalPages, changeDeckDetailPage);
 }
 
+let isReviewSelectAll = false;
+
 function toggleAllReviewCheckboxes(source) {
+    isReviewSelectAll = source.checked;
     const table = source.closest('table');
     if (!table) return;
     const checkboxes = table.querySelectorAll('.review-checkbox:not(:disabled)');
@@ -339,10 +361,31 @@ function handleReviewCheckboxChange(source) {
     if (!wrapper) return;
     const table = wrapper.querySelector('table');
     const checkboxes = table.querySelectorAll('.review-checkbox:checked');
+    const allEnabledCheckboxes = table.querySelectorAll('.review-checkbox:not(:disabled)');
     const saveBtn = wrapper.querySelector('.bulk-save-btn');
+
+    // If user unchecks a single item, disable "Select All Mode"
+    if (!source.checked && source.classList.contains('review-checkbox')) {
+        isReviewSelectAll = false;
+        const headerCheckbox = table.querySelector('.select-all-review');
+        if (headerCheckbox) headerCheckbox.checked = false;
+    }
+
+    // Recalculate if Select All matches visual state (for current page)
+    if (checkboxes.length === allEnabledCheckboxes.length && allEnabledCheckboxes.length > 0) {
+        // If all on current page are checked, we might be in Select All mode,
+        // but to truly be "All Pages", the user must have clicked the header.
+        // We keep isReviewSelectAll as is (true if set by header). 
+    }
+
     if (saveBtn) {
-        saveBtn.style.display = checkboxes.length > 0 ? 'block' : 'none';
-        saveBtn.textContent = `ยืนยันรับ (${checkboxes.length})`;
+        if (isReviewSelectAll) {
+            saveBtn.style.display = 'block';
+            saveBtn.textContent = `ยืนยันรับ (ทั้งหมด / All)`;
+        } else {
+            saveBtn.style.display = checkboxes.length > 0 ? 'block' : 'none';
+            saveBtn.textContent = `ยืนยันรับ (${checkboxes.length})`;
+        }
     }
 }
 
@@ -353,14 +396,28 @@ async function saveBulkReviewItems(btnElement) {
         const itemReceiver = item['Claim Receiver'] || item.person || 'Unknown';
         return item['Booking Slip'] === slip && itemReceiver === targetReceiver;
     });
-    const wrapper = btnElement.closest('.detail-content-wrapper') || btnElement.closest('[id$="TableWrapper"]');
-    if (!wrapper) return;
-    const checkboxes = wrapper.querySelectorAll('.review-checkbox:checked');
-    const selectedItems = [];
-    checkboxes.forEach(cb => {
-        const idx = parseInt(cb.value);
-        if (detailData[idx]) selectedItems.push(detailData[idx]);
-    });
+
+    let selectedItems = [];
+
+    if (isReviewSelectAll) {
+        // Select ALL items that are "In Transit" (i.e. not yet received)
+        selectedItems = detailData.filter(item => {
+            const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+            return !hasRecripte; // Only select pending items
+        });
+    } else {
+        const wrapper = btnElement.closest('.detail-content-wrapper') || btnElement.closest('[id$="TableWrapper"]');
+        if (!wrapper) return;
+        const checkboxes = wrapper.querySelectorAll('.review-checkbox:checked');
+
+        // We need to map visual indices (which are paginated) back to detailData indices
+        // The checkboxes values were set as "startIndex + index", so they are absolute indices relative to detailData
+        checkboxes.forEach(cb => {
+            const idx = parseInt(cb.value);
+            if (detailData[idx]) selectedItems.push(detailData[idx]);
+        });
+    }
+
     if (selectedItems.length === 0) return;
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -370,11 +427,11 @@ async function saveBulkReviewItems(btnElement) {
 
     selectedItems.forEach(item => {
         const payload = { ...item, 'Recripte': recripteName, 'RecripteDate': recripteDateStr, 'user': recripteName };
-        
+
         // Optimistic Update
         item['Recripte'] = recripteName;
         item['RecripteDate'] = recripteDateStr;
-        
+
         // Queue
         SaveQueue.add(payload);
     });
@@ -414,7 +471,7 @@ function populateDeckPlantFilter(targetPlantCode, filterId) {
     if (!filterSelect) return;
 
     const currentSelection = filterSelect.value;
-    
+
     // Clear existing options except first
     while (filterSelect.options.length > 1) {
         filterSelect.remove(1);
@@ -425,12 +482,12 @@ function populateDeckPlantFilter(targetPlantCode, filterId) {
         const pcCode = String(item['Plantcenter'] || '').trim();
         const normalize = (s) => s.replace(/^0+/, '');
         if (normalize(pcCode) === normalize(targetPlantCode)) {
-             if (item['Plant']) plants.add(item['Plant']);
+            if (item['Plant']) plants.add(item['Plant']);
         }
     });
 
     const sortedPlants = Array.from(plants).sort();
-    
+
     sortedPlants.forEach(plant => {
         const option = document.createElement('option');
         option.value = plant;
@@ -466,7 +523,7 @@ async function cancelReceiveItem(item) {
     if (!result.isConfirmed) return;
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    
+
     // Payload to clear values
     // Robust Data Lookup
     let dateReceived = item['วันที่รับซาก'];
@@ -477,29 +534,31 @@ async function cancelReceiveItem(item) {
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
-    
-    const payload = { ...item, 'Recripte': '', 'RecripteDate': '', 'user': currentUser.IDRec || 'Unknown',
-        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
+
+    const payload = {
+        ...item, 'Recripte': '', 'RecripteDate': '', 'user': currentUser.IDRec || 'Unknown',
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || ''
+    };
 
     // Optimistic Update
     item['Recripte'] = '';
     item['RecripteDate'] = '';
-    
+
     // Queue
     SaveQueue.add(payload);
 
@@ -556,29 +615,31 @@ async function confirmReceiveItem(item) {
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const found = Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase()); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
-    const payload = { ...item, 'Recripte': recripteName, 'RecripteDate': recripteDateStr, 'user': recripteName,
-        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
-    
+    const payload = {
+        ...item, 'Recripte': recripteName, 'RecripteDate': recripteDateStr, 'user': recripteName,
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || ''
+    };
+
     // Optimistic Update
     item['Recripte'] = recripteName;
     item['RecripteDate'] = recripteDateStr;
-    
+
     // Queue
     SaveQueue.add(payload);
 

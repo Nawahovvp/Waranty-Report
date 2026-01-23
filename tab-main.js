@@ -346,8 +346,10 @@ async function processBulkAction(actionName) {
     renderTable();
     toggleAllCheckboxes({ checked: false });
 
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: false });
-    Toast.fire({ icon: 'success', title: `${selectedItems.length}`, text: 'Saved' });
+    setTimeout(() => {
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true, didOpen: (toast) => { toast.style.zIndex = '20001'; } });
+        Toast.fire({ icon: 'success', title: `Saved ${selectedItems.length} items successfully` });
+    }, 500);
 }
 
 function sendDatatoGAS(item) {

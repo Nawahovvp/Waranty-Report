@@ -12,11 +12,11 @@ function openWorkOrderModal(item) {
     const currentAction = item['Warranty Action'] || '';
     document.getElementById('woDetail_ActionValue').value = currentAction;
 
-    const buttons = document.querySelectorAll('#workOrderModal .status-btn');
-    buttons.forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.getAttribute('onclick').includes(`'${currentAction}'`)) {
-            btn.classList.add('active');
+    const cards = document.querySelectorAll('#workOrderModal .status-card');
+    cards.forEach(card => {
+        card.classList.remove('active');
+        if (card.getAttribute('onclick').includes(`'${currentAction}'`)) {
+            card.classList.add('active');
         }
     });
     document.getElementById('woDetail_Note').value = item['Note'] || '';
@@ -48,21 +48,21 @@ async function saveWorkOrderDetail() {
     let productType = editingItem['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((editingItem['Work Order'] || '') + (editingItem['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((editingItem['Work Order'] || '') + (editingItem['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
     const payload = {
@@ -109,8 +109,8 @@ async function saveWorkOrderDetail() {
 
 function selectWorkOrderAction(element, action) {
     const container = element.parentElement;
-    const buttons = container.querySelectorAll('.status-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
+    const cards = container.querySelectorAll('.status-card');
+    cards.forEach(card => card.classList.remove('active'));
     element.classList.add('active');
     document.getElementById('woDetail_ActionValue').value = action;
 }
@@ -159,6 +159,8 @@ function saveSerialNumber() {
     editingItem.fullRow['Serial Number'] = newSerial;
     renderTable();
     closeEditModal();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Serial Number updated' });
 }
 
 function showLEExample() {
@@ -357,7 +359,7 @@ function saveStoreDetail() {
     editingItem.fullRow['ActionStatus'] = actionStatus;
     renderTable();
     sendDatatoGAS(editingItem);
-    
+
     // Update buttons to reflect saved state
     const btnSave = document.getElementById('btnSaveStore');
     const btnUpdate = document.getElementById('btnUpdateStore');
@@ -388,7 +390,7 @@ async function deleteStoreDetail() {
     // Optimistic Update
     editingItem.status = '';
     if (editingItem.fullRow) editingItem.fullRow['ActionStatus'] = '';
-    
+
     SaveQueue.add(payload);
     renderTable();
     closeStoreModal();
@@ -432,26 +434,26 @@ async function updateBookingSlip(item, newSlip, newDate, newPlantCenter = null) 
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
-    const payload = { 
+    const payload = {
         ...item,
-        'Booking Slip': newSlip, 
-        'Booking Date': newDate, 
+        'Booking Slip': newSlip,
+        'Booking Date': newDate,
         'Plantcenter': newPlantCenter !== null ? newPlantCenter : item['Plantcenter'],
         'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown',
         'วันที่รับซาก': dateReceived || '',
@@ -462,12 +464,12 @@ async function updateBookingSlip(item, newSlip, newDate, newPlantCenter = null) 
         'Product Type': productType || ''
     };
     payload['Key'] = (item['Work Order'] || '') + (item['Spare Part Code'] || '');
-    
+
     // Optimistic
     item['Booking Slip'] = newSlip;
     item['Booking Date'] = newDate;
     if (newPlantCenter !== null) item['Plantcenter'] = newPlantCenter;
-    
+
     SaveQueue.add(payload);
     renderBookingTable();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
@@ -504,28 +506,30 @@ async function updateClaimReceiver(item, newReceiver) {
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
-    const payload = { ...item, 'Claim Receiver': newReceiver,
-        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
-    
+    const payload = {
+        ...item, 'Claim Receiver': newReceiver,
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || ''
+    };
+
     // Optimistic
     item['Claim Receiver'] = newReceiver;
-    
+
     SaveQueue.add(payload);
     renderBookingTable();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
@@ -547,28 +551,30 @@ async function updateMobile(item, newMobile) {
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
-    const payload = { ...item, 'Mobile': newMobile,
-        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
-    
+    const payload = {
+        ...item, 'Mobile': newMobile,
+        'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || ''
+    };
+
     // Optimistic
     item['Mobile'] = newMobile;
-    
+
     SaveQueue.add(payload);
     renderBookingTable();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
@@ -599,11 +605,11 @@ async function saveMainPerson(item, newPerson) {
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
     const payload = { ...item.scrap, ...item.fullRow, 'user': currentUser.IDRec || 'Unknown', 'ActionStatus': item.status || item.fullRow['ActionStatus'] || 'เคลมประกัน', 'Claim Receiver': newPerson, 'Person': newPerson };
     delete payload['Values'];
-    
+
     // Optimistic
     item.person = newPerson;
     if (item.fullRow) item.fullRow['Claim Receiver'] = newPerson;
-    
+
     SaveQueue.add(payload);
     renderTable();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
@@ -619,4 +625,6 @@ async function openMainMobileModal(item) {
 function saveMainMobile(item, newMobile) {
     item.technicianPhone = newMobile;
     renderTable();
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'Mobile updated' });
 }

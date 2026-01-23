@@ -2,6 +2,12 @@ let supplierProductOptions = new Set();
 let currentSupplierPage = 1;
 let currentClaimSentPage = 1;
 let currentHistoryPage = 1;
+let currentSupplierDisplayedData = [];
+// Global Selection Helper
+let selectedSupplierKeys = new Set();
+function getSupplierKey(item) {
+    return (item['Work Order'] || '') + '|' + (item['Spare Part Code'] || '') + '|' + (item['Serial Number'] || '');
+}
 
 function isDateToday(dateStr) {
     if (!dateStr) return false;
@@ -11,7 +17,7 @@ function isDateToday(dateStr) {
     const year = now.getFullYear();
     const todayStr = `${day}/${month}/${year}`;
     if (dateStr === todayStr) return true;
-    
+
     // Handle DD/MM/YYYY explicitly to prevent Invalid Date in some browsers
     if (dateStr.includes('/')) {
         const parts = dateStr.split('/');
@@ -111,21 +117,21 @@ function populateSupplierFilter() {
         return isDateToday(claimDate);
     });
     if (filterSelect) {
-    const parts = new Set();
-    supplierItems.forEach(item => {
-        const name = item['Spare Part Name'];
-        if (name) parts.add(name);
-    });
-    const sortedParts = Array.from(parts).sort();
-    const currentPart = filterSelect.value;
-    filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
-    sortedParts.forEach(part => {
-        const option = document.createElement('option');
-        option.value = part;
-        option.textContent = part;
-        if (part === currentPart) option.selected = true;
-        filterSelect.appendChild(option);
-    });
+        const parts = new Set();
+        supplierItems.forEach(item => {
+            const name = item['Spare Part Name'];
+            if (name) parts.add(name);
+        });
+        const sortedParts = Array.from(parts).sort();
+        const currentPart = filterSelect.value;
+        filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+        sortedParts.forEach(part => {
+            const option = document.createElement('option');
+            option.value = part;
+            option.textContent = part;
+            if (part === currentPart) option.selected = true;
+            filterSelect.appendChild(option);
+        });
     }
     populateSupplierProductFilter(supplierItems);
 }
@@ -174,6 +180,10 @@ function renderSupplierTable() {
         const nameB = b['Spare Part Name'] || '';
         return nameA.localeCompare(nameB, 'th');
     });
+
+    // Store globally for bulk actions
+    currentSupplierDisplayedData = sortedData;
+
     const groupTotals = sortedData.reduce((acc, item) => {
         const name = item['Spare Part Name'] || 'Unknown';
         const qty = parseFloat(item['Qty']) || 0;
@@ -220,7 +230,12 @@ function renderSupplierTable() {
                 const globalIndex = startIndex + index;
                 const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
                 const disabledAttr = isClaimed ? 'disabled' : '';
-                td.innerHTML = `<input type="checkbox" class="supplier-checkbox" value="${globalIndex}" ${disabledAttr} onchange="handleSupplierCheckboxChange()">`;
+
+                // New Logic: Check Set
+                const key = getSupplierKey(item);
+                const isChecked = selectedSupplierKeys.has(key) ? 'checked' : '';
+
+                td.innerHTML = `<input type="checkbox" class="supplier-checkbox" value="${globalIndex}" ${disabledAttr} ${isChecked} onchange="handleSupplierCheckboxChange(this)">`;
                 td.style.textAlign = 'center';
                 if (isClaimed) td.style.opacity = '0.5';
             } else if (col.key === 'CustomStatus') {
@@ -229,14 +244,14 @@ function renderSupplierTable() {
                 if (!isClaimed) {
                     td.style.cursor = 'pointer';
                     td.title = 'Click to Send Claim';
-                    td.onclick = function(e) {
+                    td.onclick = function (e) {
                         e.stopPropagation();
                         sendSingleClaim(item);
                     };
                 } else {
                     td.style.cursor = 'pointer';
                     td.title = 'Click to Cancel Claim';
-                    td.onclick = function(e) {
+                    td.onclick = function (e) {
                         e.stopPropagation();
                         cancelSingleClaim(item);
                     };
@@ -272,25 +287,67 @@ function renderSupplierTable() {
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
     if (currentSupplierPage > totalPages) currentSupplierPage = 1;
     renderGenericPagination('supplierPaginationControls', currentSupplierPage, totalPages, changeSupplierPage);
+
+    // Update Select All State
+    const selectAll = document.getElementById('selectAllSupplier');
+    const bulkActions = document.getElementById('supplierBulkActions');
+
+    // Only items that can be selected (not already claimed)
+    const validItems = sortedData.filter(item => !item['ClaimSup']);
+
+    if (validItems.length > 0) {
+        const allSelected = validItems.every(item => selectedSupplierKeys.has(getSupplierKey(item)));
+        const someSelected = validItems.some(item => selectedSupplierKeys.has(getSupplierKey(item)));
+
+        if (allSelected) { selectAll.checked = true; selectAll.indeterminate = false; }
+        else if (someSelected) { selectAll.checked = false; selectAll.indeterminate = true; }
+        else { selectAll.checked = false; selectAll.indeterminate = false; }
+    } else {
+        selectAll.checked = false; selectAll.indeterminate = false;
+    }
+
+    if (selectedSupplierKeys.size > 0) {
+        bulkActions.style.display = 'flex';
+        // Optional: Update button text to show count
+        // const btn = bulkActions.querySelector('button');
+        // if(btn) btn.innerHTML = `Send Claim (${selectedSupplierKeys.size})`;
+    } else {
+        bulkActions.style.display = 'none';
+    }
 }
 
 function toggleAllSupplierCheckboxes(source) {
-    const checkboxes = document.querySelectorAll('.supplier-checkbox:not(:disabled)');
-    checkboxes.forEach(cb => cb.checked = source.checked);
-    handleSupplierCheckboxChange();
+    if (!currentSupplierDisplayedData || currentSupplierDisplayedData.length === 0) return;
+
+    const isChecked = source.checked;
+
+    currentSupplierDisplayedData.forEach(item => {
+        if (!item['ClaimSup']) {
+            const key = getSupplierKey(item);
+            if (isChecked) selectedSupplierKeys.add(key);
+            else selectedSupplierKeys.delete(key);
+        }
+    });
+
+    renderSupplierTable();
 }
 
-function handleSupplierCheckboxChange() {
-    const checkboxes = document.querySelectorAll('.supplier-checkbox:checked');
-    const bulkActions = document.getElementById('supplierBulkActions');
-    const selectAll = document.getElementById('selectAllSupplier');
-    const allCheckboxes = document.querySelectorAll('.supplier-checkbox:not(:disabled)');
-    if (allCheckboxes.length > 0) {
-        if (checkboxes.length === allCheckboxes.length) { selectAll.checked = true; selectAll.indeterminate = false; }
-        else if (checkboxes.length > 0) { selectAll.checked = false; selectAll.indeterminate = true; }
-        else { selectAll.checked = false; selectAll.indeterminate = false; }
+function handleSupplierCheckboxChange(checkbox) {
+    // If called from individual checkbox change
+    if (checkbox) {
+        const globalIndex = parseInt(checkbox.value);
+        // We use currentSupplierDisplayedData because sortedData is local to render. 
+        // globalIndex passed to value in render is accurate to the array index.
+        const item = currentSupplierDisplayedData[globalIndex];
+
+        if (item) {
+            const key = getSupplierKey(item);
+            if (checkbox.checked) selectedSupplierKeys.add(key);
+            else selectedSupplierKeys.delete(key);
+        }
     }
-    if (checkboxes.length > 0) bulkActions.style.display = 'flex'; else bulkActions.style.display = 'none';
+    // Just refresh UI state
+    renderSupplierTable();
 }
 
 async function sendSingleClaim(item) {
@@ -321,28 +378,28 @@ async function sendSingleClaim(item) {
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
     const payload = { ...item, 'Claim Date': formattedDate, 'ClaimSup': claimSup, 'user': currentUser.IDRec || 'Unknown', 'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
-    
+
     // Optimistic
-    item['Claim Date'] = formattedDate; 
+    item['Claim Date'] = formattedDate;
     item['ClaimSup'] = claimSup;
-    
+
     SaveQueue.add(payload);
 
     renderSupplierTable();
@@ -352,7 +409,7 @@ async function sendSingleClaim(item) {
         renderHistoryTable();
     } catch (e) { console.error(e); }
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
-    Toast.fire({ icon: 'success', title: `Item sent to claim` });
+    Toast.fire({ icon: 'success', title: 'Item sent to claim' });
 }
 
 async function cancelSingleClaim(item) {
@@ -381,28 +438,28 @@ async function cancelSingleClaim(item) {
     let productType = item['Product Type'];
 
     if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-         const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-         const match = fullData.find(d => {
-             const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             return dKey === targetKey;
-         });
-         if (match) {
-             const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-             if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-             if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-             if (!keep) keep = getVal(match.scrap, 'Keep');
-             if (!ciName) ciName = match.fullRow['CI Name'] || '';
-             if (!problem) problem = match.fullRow['Problem'] || '';
-             if (!productType) productType = match.fullRow['Product Type'] || '';
-         }
+        const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
     }
 
     const payload = { ...item, 'Claim Date': '', 'ClaimSup': '', 'user': currentUser.IDRec || 'Unknown', 'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
-    
+
     // Optimistic
-    item['Claim Date'] = ''; 
+    item['Claim Date'] = '';
     item['ClaimSup'] = '';
-    
+
     SaveQueue.add(payload);
 
     renderSupplierTable();
@@ -416,41 +473,31 @@ async function cancelSingleClaim(item) {
 }
 
 async function sendClaim() {
-    const checkboxes = document.querySelectorAll('.supplier-checkbox:checked');
-    if (checkboxes.length === 0) return;
-    const filterSelect = document.getElementById('supplierPartFilter');
-    const searchInput = document.getElementById('supplierSearchInput');
-    const statusFilter = document.getElementById('supplierStatusFilter');
+    // Collect Items from globalBookingData (or currentSupplierDisplayedData) that match the keys
+    // BUT currentSupplierDisplayedData is filtered. If user selects all, changes filter, currentSupplierDisplayedData changes.
+    // However, key is unique. We should iterate globalBookingData (or at least all allowedData re-calculated, but Set has keys).
+    // Safest is to find items in globalBookingData that match keys AND are valid for 'Send Claim'.
 
-    const filterValue = filterSelect ? filterSelect.value : '';
-    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const statusValue = statusFilter ? statusFilter.value : '';
+    // Efficiency: iterating globalBookingData is fine.
 
-    let allowedData = globalBookingData.filter(item => {
-        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-        const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
-        if (!hasRecripte) return false;
-        if (!hasClaimSup || !claimDate) return true;
-        return isDateToday(claimDate);
+    if (selectedSupplierKeys.size === 0) return;
+
+    // We need to find the actual objects.
+    // We can use the logic from 'processBookingAction' with a lookup map.
+    const lookupMap = new Map();
+    globalBookingData.forEach(row => {
+        // Only consider items that are NOT claimed yet? logic below will overwrite anyway but it's cleaner.
+        if (!row['ClaimSup']) {
+            lookupMap.set(getSupplierKey(row), row);
+        }
     });
-    if (supplierProductOptions.size > 0) allowedData = allowedData.filter(item => supplierProductOptions.has(item['Product']));
-    if (filterValue) allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
-    if (statusValue) {
-        allowedData = allowedData.filter(item => {
-            const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-            const status = isClaimed ? 'ส่งเคลมแล้ว' : 'รอส่งเคลม';
-            return status === statusValue;
-        });
-    }
-    if (searchTerm) {
-        allowedData = allowedData.filter(item => {
-            return Object.values(item).some(val => String(val || '').toLowerCase().includes(searchTerm));
-        });
-    }
-    const sortedData = [...allowedData].reverse().sort((a, b) => { const nameA = a['Spare Part Name'] || ''; const nameB = b['Spare Part Name'] || ''; return nameA.localeCompare(nameB, 'th'); });
+
     const selectedItems = [];
-    checkboxes.forEach(cb => { const idx = parseInt(cb.value); if (sortedData[idx]) selectedItems.push(sortedData[idx]); });
+    selectedSupplierKeys.forEach(key => {
+        const item = lookupMap.get(key);
+        if (item) selectedItems.push(item);
+    });
+
     if (selectedItems.length === 0) return;
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -471,33 +518,36 @@ async function sendClaim() {
         let productType = item['Product Type'];
 
         if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
-             const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-             const match = fullData.find(d => {
-                 const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
-                 return dKey === targetKey;
-             });
-             if (match) {
-                 const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
-                 if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
-                 if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
-                 if (!keep) keep = getVal(match.scrap, 'Keep');
-                 if (!ciName) ciName = match.fullRow['CI Name'] || '';
-                 if (!problem) problem = match.fullRow['Problem'] || '';
-                 if (!productType) productType = match.fullRow['Product Type'] || '';
-             }
+            const targetKey = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            const match = fullData.find(d => {
+                const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+                return dKey === targetKey;
+            });
+            if (match) {
+                const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+                if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+                if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+                if (!keep) keep = getVal(match.scrap, 'Keep');
+                if (!ciName) ciName = match.fullRow['CI Name'] || '';
+                if (!problem) problem = match.fullRow['Problem'] || '';
+                if (!productType) productType = match.fullRow['Product Type'] || '';
+            }
         }
 
         const payload = { ...item, 'Claim Date': formattedDate, 'ClaimSup': claimSup, 'user': JSON.parse(localStorage.getItem('currentUser') || '{}').IDRec || 'Unknown', 'วันที่รับซาก': dateReceived || '', 'ผู้รับซาก': receiver || '', 'Keep': keep || '', 'CI Name': ciName || '', 'Problem': problem || '', 'Product Type': productType || '' };
-        
+
         // Optimistic
-        item['Claim Date'] = formattedDate; 
+        item['Claim Date'] = formattedDate;
         item['ClaimSup'] = claimSup;
-        
+
         SaveQueue.add(payload);
     });
 
-    renderSupplierTable(); 
-    handleSupplierCheckboxChange();
+    // CLEAR SELECTION AFTER SEND
+    selectedSupplierKeys.clear();
+
+    renderSupplierTable();
+    handleSupplierCheckboxChange(); // Updates UI
     try {
         populateClaimSentFilter();
         renderClaimSentTable();
@@ -517,22 +567,22 @@ function populateClaimSentFilter() {
     const filterSelect = document.getElementById('claimSentPartFilter');
     if (filterSelect) {
 
-    // Filter Items: Must have 'Recripte' AND 'ClaimSup'
-    const claimSentItems = globalBookingData.filter(item => {
-        const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
-        const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
-        return hasRecripte && hasClaimSup;
-    });
+        // Filter Items: Must have 'Recripte' AND 'ClaimSup'
+        const claimSentItems = globalBookingData.filter(item => {
+            const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
+            const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
+            return hasRecripte && hasClaimSup;
+        });
 
-    const parts = [...new Set(claimSentItems.map(item => item['Spare Part Name']).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+        const parts = [...new Set(claimSentItems.map(item => item['Spare Part Name']).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
 
-    filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
-    parts.forEach(part => {
-        const option = document.createElement('option');
-        option.value = part;
-        option.textContent = part;
-        filterSelect.appendChild(option);
-    });
+        filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
+        parts.forEach(part => {
+            const option = document.createElement('option');
+            option.value = part;
+            option.textContent = part;
+            filterSelect.appendChild(option);
+        });
     }
 }
 
@@ -543,7 +593,9 @@ function renderClaimSentTable() {
 
     // Filter Data: 'Recripte' AND 'ClaimSup'
     const filterSelect = document.getElementById('claimSentPartFilter');
+    const searchInput = document.getElementById('claimSentSearchInput');
     const filterValue = filterSelect ? filterSelect.value : '';
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
     let allowedData = globalBookingData.filter(item => {
         const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
@@ -553,6 +605,12 @@ function renderClaimSentTable() {
 
     if (filterValue) {
         allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
+    }
+
+    if (searchTerm) {
+        allowedData = allowedData.filter(item => {
+            return Object.values(item).some(val => String(val || '').toLowerCase().includes(searchTerm));
+        });
     }
 
     // Sort Data: Spare Part Name (Asc)
@@ -790,19 +848,12 @@ function renderHistoryTable() {
                     if (s.indexOf(' ') > -1) s = s.split(' ')[0];
                     value = s;
                 }
-                if (col.key === 'Plantcenter' && value) {
-                    const v = String(value).replace(/^0+/, '');
-                    if (v === '301') value = 'คลังนวนคร';
-                    else if (v === '326') value = 'คลังวิภาวดี';
-                }
                 td.textContent = value;
             }
             tr.appendChild(td);
         });
         tableBody.appendChild(tr);
     });
-
-    // Render Pagination Controls
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
     if (currentHistoryPage > totalPages) currentHistoryPage = 1;
     renderGenericPagination('historyPaginationControls', currentHistoryPage, totalPages, changeHistoryPage);

@@ -14,7 +14,7 @@ const SaveQueue = {
     failedQueue: [],
     isProcessing: false,
 
-    add: function(payload) {
+    add: function (payload) {
         if (!payload._retries) payload._retries = 0;
         const key = payload['Key'] || payload['Work Order'] || payload['work order'] || 'Unknown';
         console.log(`[SaveQueue] 📥 ADD: Queueing item. Total Pending: ${this.queue.length + 1}. Key: ${key}`, payload);
@@ -24,7 +24,7 @@ const SaveQueue = {
         this.process();
     },
 
-    process: async function() {
+    process: async function () {
         if (this.isProcessing || this.queue.length === 0) return;
 
         this.isProcessing = true;
@@ -39,10 +39,10 @@ const SaveQueue = {
             this.save();
         } catch (error) {
             console.error("Background Save Error:", error);
-            
+
             payload._retries = (payload._retries || 0) + 1;
             console.warn(`[SaveQueue] ⚠️ FAIL: Error sending item. Key: ${key}. Retry count: ${payload._retries}`);
-            
+
             if (payload._retries < 3) {
                 // Retry logic: Wait 2 seconds then try again
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -63,7 +63,7 @@ const SaveQueue = {
         }
     },
 
-    retryFailed: function() {
+    retryFailed: function () {
         while (this.failedQueue.length > 0) {
             const item = this.failedQueue.shift();
             item._retries = 0;
@@ -74,7 +74,7 @@ const SaveQueue = {
         this.process();
     },
 
-    save: function() {
+    save: function () {
         try {
             localStorage.setItem('WARRANTY_SAVE_QUEUE', JSON.stringify({
                 queue: this.queue,
@@ -83,7 +83,7 @@ const SaveQueue = {
         } catch (e) { console.error("Error saving queue to storage:", e); }
     },
 
-    init: function() {
+    init: function () {
         try {
             const stored = localStorage.getItem('WARRANTY_SAVE_QUEUE');
             if (stored) {
@@ -99,7 +99,7 @@ const SaveQueue = {
         } catch (e) { console.error("Error loading queue from storage:", e); }
     },
 
-    updateUI: function() {
+    updateUI: function () {
         const container = document.getElementById('saveQueueStatus');
         const text = document.getElementById('saveQueueText');
         if (!container || !text) return;
@@ -111,7 +111,7 @@ const SaveQueue = {
             container.style.display = 'none';
         } else {
             container.style.display = 'flex'; // Handled by classes mostly, but ensure visibility
-            
+
             if (failed > 0) {
                 container.className = 'header-save-status failed';
                 text.textContent = failed;
@@ -149,9 +149,9 @@ async function fetchData(url) {
 function renderGenericPagination(containerId, currentPage, totalPages, onPageChange) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    
+
     container.innerHTML = '';
-    if (totalPages === 0 && containerId === 'paginationControls') return; 
+    if (totalPages === 0 && containerId === 'paginationControls') return;
     if (containerId !== 'paginationControls') container.style.display = 'flex';
 
     const createButton = (text, onClick, disabled = false, isActive = false) => {
