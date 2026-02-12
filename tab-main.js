@@ -409,15 +409,21 @@ function sendDatatoGAS(item) {
     item.fullRow['user'] = payload['user'];
 
     // Update Global Booking Data locally
-    const targetKey = (payload['work order'] || '') + (payload['Spare Part Code'] || '');
+    const targetKey = ((payload['work order'] || '') + (payload['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
 
     // Preserve existing data if available
-    const existingRow = globalBookingData.find(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey === targetKey; });
+    const existingRow = globalBookingData.find(row => {
+        const rowKey = ((row['Work Order'] || '') + (row['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        return rowKey === targetKey;
+    });
     const preservedSlip = existingRow ? (existingRow['Booking Slip'] || '') : '';
     const preservedDate = existingRow ? (existingRow['Booking Date'] || '') : '';
     const preservedPlantCenter = existingRow ? (existingRow['Plantcenter'] || '') : '';
 
-    globalBookingData = globalBookingData.filter(row => { const rowKey = (row['Work Order'] || '') + (row['Spare Part Code'] || ''); return rowKey !== targetKey; });
+    globalBookingData = globalBookingData.filter(row => {
+        const rowKey = ((row['Work Order'] || '') + (row['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        return rowKey !== targetKey;
+    });
 
     if (payload['ActionStatus'] === 'เคลมประกัน') {
         const getVal = (obj, keyName) => {

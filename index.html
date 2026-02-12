@@ -731,10 +731,30 @@
             <!-- TAB 6: Claim Sent View -->
             <div id="tab-content-claimSent" class="tab-content">
                 <div class="filter-bar">
-                    <select id="claimSentPartFilter" class="filter-select"
-                        onchange="currentClaimSentPage=1; renderClaimSentTable()">
-                        <option value="">All Spare Parts</option>
-                    </select>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <select id="claimSentPartFilter" class="filter-select"
+                            onchange="currentClaimSentPage=1; renderClaimSentTable()">
+                            <option value="">All Spare Parts</option>
+                        </select>
+                        <select id="claimSentReceiverFilter" class="filter-select"
+                            onchange="currentClaimSentPage=1; renderClaimSentTable()">
+                            <option value="">All Receivers</option>
+                        </select>
+                    </div>
+
+                    <!-- Bulk Actions for Claim Sent -->
+                    <div id="claimSentBulkActions"
+                        style="display: none; align-items: center; gap: 10px; margin-left: 10px;">
+                        <button class="action-btn btn-success" onclick="handleWarrantyAction('เคลมสำเร็จ')">
+                            <i class="fas fa-check-circle"></i> เคลมสำเร็จ (Claim Successful)
+                        </button>
+                        <!-- Hidden as per request -->
+                        <button class="action-btn btn-danger" onclick="handleWarrantyAction('ไม่รับประกัน')"
+                            style="display: none;">
+                            <i class="fas fa-times-circle"></i> ไม่รับประกัน (No Warranty)
+                        </button>
+                    </div>
+
                     <div style="flex: 1;"></div>
                     <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Search:</label>
                     <input type="text" id="claimSentSearchInput" placeholder="Search All Columns..."
@@ -875,8 +895,24 @@
 
                 <div class="modal-actions" style="margin-top: 1rem; padding-top: 0.5rem;">
                     <button class="btn" onclick="closeWorkOrderModal()" style="padding: 0.4rem 1rem;">Close</button>
-                    <button class="btn btn-primary" onclick="saveWorkOrderDetail()" style="padding: 0.4rem 1rem;">Save
-                        Changes</button>
+                    <button id="btnSaveWorkOrder" class="btn btn-primary" onclick="saveWorkOrderDetail()"
+                        style="padding: 0.4rem 1rem;">Save Changes</button>
+
+                    <!-- Warranty Decision Buttons (Hidden by default) -->
+                    <div id="warrantyDecisionButtons" style="display: none; gap: 10px;">
+                        <button class="btn btn-success" onclick="handleWarrantyDecision('เคลมสำเร็จ')"
+                            style="padding: 0.4rem 1rem; background-color: #10b981; color: white; border: none;">
+                            <i class="fas fa-check-circle"></i> เคลมสำเร็จ (Claim Successful)
+                        </button>
+                        <button class="btn btn-danger" onclick="handleWarrantyDecision('ไม่รับประกัน')"
+                            style="padding: 0.4rem 1rem; background-color: #ef4444; color: white; border: none;">
+                            <i class="fas fa-times-circle"></i> ไม่รับประกัน (No Warranty)
+                        </button>
+                        <button id="btnCancelWarranty" class="btn" onclick="handleWarrantyDecision('ยกเลิก')"
+                            style="padding: 0.4rem 1rem; background-color: #64748b; color: white; border: none; display: none;">
+                            <i class="fas fa-undo"></i> ยกเลิก (Cancel)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

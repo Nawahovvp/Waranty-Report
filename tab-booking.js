@@ -367,7 +367,16 @@ function renderBookingTable() {
             let value = row[col.key] || '';
 
             if (col.key === 'CustomStatus') {
-                td.innerHTML = getComputedStatus(row);
+                const statusHtml = getComputedStatus(row);
+                // Create a clickable wrapper
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = statusHtml;
+                wrapper.style.cursor = 'pointer';
+                wrapper.onclick = (e) => {
+                    e.stopPropagation(); // Prevent row click if any
+                    handleBookingStatusClick(row);
+                };
+                td.appendChild(wrapper);
                 tr.appendChild(td);
                 return;
             }
@@ -472,4 +481,59 @@ function changeBookingPage(newPage) {
     renderBookingTable();
     const tableContainer = document.querySelector('#tab-content-booking .table-container');
     if (tableContainer) tableContainer.scrollTop = 0;
+}
+
+function handleBookingStatusClick(row) {
+    if (!row) return;
+
+    // Use work order and spare part code to find the full data object
+    const workOrder = row['Work Order'] || '';
+    const partCode = row['Spare Part Code'] || '';
+    const key = (workOrder + partCode).replace(/\s/g, '').toLowerCase();
+
+    // Try to find the matching item in fullData (which has the correct structure for openStoreModal)
+    let match = null;
+    if (typeof fullData !== 'undefined') {
+        match = fullData.find(item => {
+            const itemWO = item.scrap['work order'] || '';
+            const itemCode = item.scrap['Spare Part Code'] || '';
+            const itemKey = (itemWO + itemCode).replace(/\s/g, '').toLowerCase();
+            return itemKey === key;
+        });
+    }
+
+    if (match) {
+        openStoreModal(match);
+    } else {
+        // Fallback: Create a temporary object structure compatible with openStoreModal
+        // This handles cases where data might not be fully synced or in fullData yet
+        const tempItem = {
+            scrap: {
+                'work order': row['Work Order'],
+                'Spare Part Code': row['Spare Part Code'],
+                'Spare Part Name': row['Spare Part Name'],
+                'qty': row['Qty'],
+                'รหัสช่าง': '', // Might be missing in booking view
+                'ชื่อช่าง': '',
+                'Keep': row['Keep'],
+                'วันที่รับซาก': row['วันที่รับซาก'],
+                'ผู้รับซาก': row['ผู้รับซาก']
+            },
+            fullRow: {
+                'Serial Number': row['Serial Number'],
+                'Store Code': row['Store Code'],
+                'Store Name': row['Store Name'],
+                'CI Name': row['CI Name'],
+                'Product Type': row['Product Type'],
+                'Problem': row['Problem'],
+                'Product': row['Product'],
+                'ActionStatus': row['ActionStatus'] || row['Warranty Action'] || 'เคลมประกัน',
+                'Claim Receiver': row['Claim Receiver']
+            },
+            status: row['ActionStatus'] || row['Warranty Action'] || 'เคลมประกัน',
+            technicianPhone: row['Mobile'] || '',
+            person: row['Claim Receiver'] || row['person']
+        };
+        openStoreModal(tempItem);
+    }
 }

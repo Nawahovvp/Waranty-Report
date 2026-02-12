@@ -1,6 +1,6 @@
 let editingItem = null;
 
-function openWorkOrderModal(item) {
+function openWorkOrderModal(item, context = 'edit') {
     editingItem = item;
     document.getElementById('woDetail_WorkOrder').value = item['Work Order'] || '';
     document.getElementById('woDetail_Qty').value = item['Qty'] || '';
@@ -20,7 +20,57 @@ function openWorkOrderModal(item) {
         }
     });
     document.getElementById('woDetail_Note').value = item['Note'] || '';
+
+    // Context Logic
+    const btnSave = document.getElementById('btnSaveWorkOrder');
+    const btnDecision = document.getElementById('warrantyDecisionButtons');
+    const btnCancel = document.getElementById('btnCancelWarranty');
+
+    if (context === 'warrantyDecision') {
+        if (btnSave) btnSave.style.display = 'none';
+        if (btnDecision) btnDecision.style.display = 'flex';
+
+        // Show Cancel button ONLY if already decided ('เคลมสำเร็จ' or 'ไม่รับประกัน')
+        if (currentAction === 'เคลมสำเร็จ' || currentAction === 'ไม่รับประกัน') {
+            if (btnCancel) btnCancel.style.display = 'inline-flex';
+        } else {
+            if (btnCancel) btnCancel.style.display = 'none';
+        }
+    } else {
+        if (btnSave) btnSave.style.display = 'inline-block';
+        if (btnDecision) btnDecision.style.display = 'none';
+    }
+
     document.getElementById('workOrderModal').style.display = 'flex';
+}
+
+async function handleWarrantyDecision(decision) {
+    if (!editingItem) return;
+
+    const note = document.getElementById('woDetail_Note').value.trim();
+
+    if (decision === 'ไม่รับประกัน' && !note) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Required',
+            text: 'กรุณาระบุหมายเหตุ (Note) สำหรับกรณีไม่รับประกัน',
+            confirmButtonColor: '#f59e0b'
+        });
+        return;
+    }
+
+    // Cancel Logic
+    if (decision === 'ยกเลิก') {
+        document.getElementById('woDetail_ActionValue').value = 'เคลมประกัน';
+        document.getElementById('woDetail_Note').value = ''; // Clear UI Note
+        editingItem['Warranty Action'] = 'เคลมประกัน';
+        editingItem['Note'] = ''; // Clear Item Note
+    } else {
+        document.getElementById('woDetail_ActionValue').value = decision;
+    }
+
+    // Call Save
+    await saveWorkOrderDetail(decision === 'ยกเลิก'); // Pass flag
 }
 
 function closeWorkOrderModal() {
@@ -28,7 +78,7 @@ function closeWorkOrderModal() {
     editingItem = null;
 }
 
-async function saveWorkOrderDetail() {
+async function saveWorkOrderDetail(isCancel = false) {
     if (!editingItem) return;
     const newSerial = document.getElementById('woDetail_SerialNumber').value;
     const newNote = document.getElementById('woDetail_Note').value;
@@ -83,6 +133,15 @@ async function saveWorkOrderDetail() {
         'Product Type': productType || ''
     };
 
+    // Logic for Finish and Datefinish
+    if (newAction === 'เคลมสำเร็จ' || newAction === 'ไม่รับประกัน') {
+        // payload['Finish'] = newAction; // REMOVED
+        payload['Datefinish'] = new Date().toLocaleString('en-GB');
+    } else if (isCancel) {
+        payload['Datefinish'] = '';
+        payload['Note'] = ''; // Explicitly clear Note in payload
+    }
+
     // Optimistic Update
     editingItem['Serial Number'] = newSerial;
     editingItem['Note'] = newNote;
@@ -90,6 +149,8 @@ async function saveWorkOrderDetail() {
     editingItem['Qty'] = newQty;
     editingItem['Recripte'] = recripteName;
     editingItem['RecripteDate'] = payload['RecripteDate'];
+    // if (payload['Finish']) editingItem['Finish'] = payload['Finish']; // REMOVED
+    if (payload['Datefinish'] !== undefined) editingItem['Datefinish'] = payload['Datefinish'];
 
     // Queue
     SaveQueue.add(payload);
@@ -102,6 +163,12 @@ async function saveWorkOrderDetail() {
             renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
         }
     }
+
+    // Refresh all main tables that might display this data
+    if (typeof renderClaimSentTable === 'function') renderClaimSentTable();
+    if (typeof renderSupplierTable === 'function') renderSupplierTable();
+    if (typeof renderHistoryTable === 'function') renderHistoryTable();
+    if (typeof renderBookingTable === 'function') renderBookingTable();
     closeWorkOrderModal();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
     Toast.fire({ icon: 'success', title: 'Work Order updated' });
@@ -357,6 +424,8 @@ function saveStoreDetail() {
     editingItem.scrap['qty'] = qtyInput;
     editingItem.technicianPhone = mobileInput;
     editingItem.fullRow['ActionStatus'] = actionStatus;
+
+    // Sync with globalBookingData if it exists
     renderTable();
     sendDatatoGAS(editingItem);
 
@@ -370,6 +439,12 @@ function saveStoreDetail() {
         btnUpdate.style.display = 'inline-block';
         btnDelete.style.display = 'inline-block';
     }
+
+    // Refresh Booking Table if data was updated from there
+    if (typeof renderBookingTable === 'function' && typeof globalBookingData !== 'undefined') {
+        renderBookingTable();
+    }
+
     closeStoreModal();
 }
 
@@ -391,8 +466,28 @@ async function deleteStoreDetail() {
     editingItem.status = '';
     if (editingItem.fullRow) editingItem.fullRow['ActionStatus'] = '';
 
+    // Sync removal with globalBookingData
+    if (typeof globalBookingData !== 'undefined' && globalBookingData.length > 0) {
+        const targetKey = ((editingItem.scrap?.['work order'] || editingItem['Work Order'] || '') + (editingItem.scrap?.['Spare Part Code'] || editingItem['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+
+        const bookingIndex = globalBookingData.findIndex(item => {
+            const k = ((item['Work Order'] || '') + (item['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return k === targetKey;
+        });
+
+        if (bookingIndex !== -1) {
+            globalBookingData.splice(bookingIndex, 1);
+        }
+    }
+
     SaveQueue.add(payload);
     renderTable();
+
+    // Refresh Booking Table if data was deleted from there
+    if (typeof renderBookingTable === 'function') {
+        renderBookingTable();
+    }
+
     closeStoreModal();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
     Toast.fire({ icon: 'success', title: 'Record deleted' });

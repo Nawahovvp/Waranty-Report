@@ -598,23 +598,34 @@ function changeSupplierPage(newPage) { if (newPage < 1) return; currentSupplierP
 
 function populateClaimSentFilter() {
     const filterSelect = document.getElementById('claimSentPartFilter');
+    const receiverSelect = document.getElementById('claimSentReceiverFilter');
+
+    // Filter Items: Must have 'Recripte' AND 'ClaimSup'
+    const claimSentItems = globalBookingData.filter(item => {
+        const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
+        const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
+        return hasRecripte && hasClaimSup;
+    });
+
     if (filterSelect) {
-
-        // Filter Items: Must have 'Recripte' AND 'ClaimSup'
-        const claimSentItems = globalBookingData.filter(item => {
-            const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
-            const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
-            return hasRecripte && hasClaimSup;
-        });
-
         const parts = [...new Set(claimSentItems.map(item => item['Spare Part Name']).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
-
         filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
         parts.forEach(part => {
             const option = document.createElement('option');
             option.value = part;
             option.textContent = part;
             filterSelect.appendChild(option);
+        });
+    }
+
+    if (receiverSelect) {
+        const receivers = [...new Set(claimSentItems.map(item => item['Claim Receiver']).filter(Boolean))].sort();
+        receiverSelect.innerHTML = '<option value="">All Receivers</option>';
+        receivers.forEach(receiver => {
+            const option = document.createElement('option');
+            option.value = receiver;
+            option.textContent = receiver;
+            receiverSelect.appendChild(option);
         });
     }
 }
@@ -626,8 +637,11 @@ function renderClaimSentTable() {
 
     // Filter Data: 'Recripte' AND 'ClaimSup'
     const filterSelect = document.getElementById('claimSentPartFilter');
+    const receiverSelect = document.getElementById('claimSentReceiverFilter');
     const searchInput = document.getElementById('claimSentSearchInput');
+
     const filterValue = filterSelect ? filterSelect.value : '';
+    const receiverValue = receiverSelect ? receiverSelect.value : '';
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
     let allowedData = globalBookingData.filter(item => {
@@ -638,6 +652,10 @@ function renderClaimSentTable() {
 
     if (filterValue) {
         allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
+    }
+
+    if (receiverValue) {
+        allowedData = allowedData.filter(item => item['Claim Receiver'] === receiverValue);
     }
 
     if (searchTerm) {
@@ -664,11 +682,13 @@ function renderClaimSentTable() {
     // Headers (Same as Supplier)
     tableHeader.innerHTML = '';
     SUPPLIER_COLUMNS.forEach(col => {
-        // Skip Checkbox for Sent Claim view (read-only for now)
-        if (col.key === 'checkbox') return;
+        // Enable Checkbox for Sent Claim view
+        // if (col.key === 'checkbox') return; // REMOVED SKIP
 
         const th = document.createElement('th');
-        if (col.header.includes('<')) {
+        if (col.key === 'checkbox') {
+            th.innerHTML = '<input type="checkbox" id="selectAllClaimSent" onclick="toggleAllClaimSentCheckboxes(this)">';
+        } else if (col.header.includes('<')) {
             th.innerHTML = col.header;
         } else {
             th.textContent = col.header;
@@ -690,6 +710,9 @@ function renderClaimSentTable() {
         previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
     }
 
+    // Store for "Select All" logic
+    currentClaimSentDisplayedData = sortedData;
+
     pageData.forEach((item, index) => {
         const currentPartName = item['Spare Part Name'] || 'Unknown';
         const currentPartCode = item['Spare Part Code'] || '';
@@ -702,7 +725,7 @@ function renderClaimSentTable() {
             headerRow.style.fontWeight = 'bold';
 
             const headerCell = document.createElement('td');
-            headerCell.colSpan = SUPPLIER_COLUMNS.length - 1; // -1 for checkbox
+            headerCell.colSpan = SUPPLIER_COLUMNS.length; // Full width
             headerCell.style.padding = '12px';
             headerCell.style.borderTop = '2px solid #e2e8f0';
             headerCell.style.color = '#334155';
@@ -724,18 +747,36 @@ function renderClaimSentTable() {
 
         const tr = document.createElement('tr');
         SUPPLIER_COLUMNS.forEach(col => {
-            if (col.key === 'checkbox') return; // Skip checkbox
-
             const td = document.createElement('td');
             let value = item[col.key] || '';
 
-            if (col.key === 'CustomStatus') {
+            if (col.key === 'checkbox') {
+                const globalIndex = startIndex + index;
+                const key = getSupplierKey(item);
+
+                // Logic to determine if status is 'ส่งเคลมแล้ว'
+                const action = item['Warranty Action'] || item['ActionStatus'];
+                const hasAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+                const isClaimSent = !hasAction && (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '');
+
+                if (isClaimSent) {
+                    const isChecked = selectedClaimSentKeys.has(key) ? 'checked' : '';
+                    td.innerHTML = `<input type="checkbox" class="claim-sent-checkbox" value="${globalIndex}" ${isChecked} onchange="handleClaimSentCheckboxChange(this)">`;
+                } else {
+                    td.innerHTML = '';
+                }
+                td.style.textAlign = 'center';
+            } else if (col.key === 'CustomStatus') {
                 td.innerHTML = getComputedStatus(item);
+                td.style.cursor = 'pointer';
+                td.title = 'Click to update warranty status';
+                td.onclick = function (e) {
+                    e.stopPropagation();
+                    openWorkOrderModal(item, 'warrantyDecision');
+                };
                 tr.appendChild(td);
                 return;
-            }
-
-            if (col.key === 'Work Order' || col.key === 'Serial Number') {
+            } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
                 td.style.cursor = 'pointer';
                 td.style.color = 'var(--primary-color)';
@@ -775,6 +816,152 @@ function renderClaimSentTable() {
     const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
     if (currentClaimSentPage > totalPages) currentClaimSentPage = 1;
     renderGenericPagination('claimSentPaginationControls', currentClaimSentPage, totalPages, changeClaimSentPage);
+
+    // Update Select All & Buttons
+    const selectAll = document.getElementById('selectAllClaimSent');
+    const bulkActions = document.getElementById('claimSentBulkActions');
+
+    // Filter only eligible items for "Select All" status checks
+    const eligibleItems = sortedData.filter(item => {
+        const action = item['Warranty Action'] || item['ActionStatus'];
+        const hasAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+        return !hasAction && (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '');
+    });
+
+    if (eligibleItems.length > 0) {
+        const allSelected = eligibleItems.every(item => selectedClaimSentKeys.has(getSupplierKey(item)));
+        const someSelected = eligibleItems.some(item => selectedClaimSentKeys.has(getSupplierKey(item)));
+
+        if (selectAll) {
+            selectAll.disabled = false;
+            if (allSelected) {
+                selectAll.checked = true;
+                selectAll.indeterminate = false;
+            } else if (someSelected) {
+                selectAll.checked = false;
+                selectAll.indeterminate = true;
+            } else {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+        }
+    } else {
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            selectAll.disabled = true; // Disable if no items can be selected
+        }
+    }
+
+    if (bulkActions) {
+        bulkActions.style.display = selectedClaimSentKeys.size > 0 ? 'flex' : 'none';
+        // Optional: Update button text with count
+    }
+}
+
+// Global Set for Selected Keys
+let selectedClaimSentKeys = new Set();
+let currentClaimSentDisplayedData = [];
+
+function toggleAllClaimSentCheckboxes(source) {
+    if (!currentClaimSentDisplayedData || currentClaimSentDisplayedData.length === 0) return;
+    const isChecked = source.checked;
+    currentClaimSentDisplayedData.forEach(item => {
+        // Same logic: ONLY select if status is 'ส่งเคลมแล้ว'
+        const action = item['Warranty Action'] || item['ActionStatus'];
+        const hasAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+        const isClaimSent = !hasAction && (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '');
+
+        if (isClaimSent) {
+            const key = getSupplierKey(item);
+            if (isChecked) selectedClaimSentKeys.add(key);
+            else selectedClaimSentKeys.delete(key);
+        }
+    });
+    renderClaimSentTable();
+}
+
+function handleClaimSentCheckboxChange(checkbox) {
+    if (checkbox) {
+        // We need to resolve item from index relative to current page or global?
+        // render renders from pageData, but value is globalIndex into sortedData (currentClaimSentDisplayedData)
+        // Check line: value="${globalIndex}" where globalIndex = startIndex + index
+        const globalIndex = parseInt(checkbox.value);
+        const item = currentClaimSentDisplayedData[globalIndex];
+        if (item) {
+            const key = getSupplierKey(item);
+            if (checkbox.checked) selectedClaimSentKeys.add(key);
+            else selectedClaimSentKeys.delete(key);
+        }
+    }
+    renderClaimSentTable();
+}
+
+async function handleWarrantyAction(status) {
+    if (selectedClaimSentKeys.size === 0) return;
+
+    // Resolve Items
+    const lookupMap = new Map();
+    globalBookingData.forEach(row => lookupMap.set(getSupplierKey(row), row));
+
+    const selectedItems = [];
+    selectedClaimSentKeys.forEach(key => {
+        const item = lookupMap.get(key);
+        if (item) selectedItems.push(item);
+    });
+
+    if (selectedItems.length === 0) return;
+
+    const result = await Swal.fire({
+        title: `ยืนยันผลการเคลม: ${status}?`,
+        html: `คุณกำลังจะบันทึกผล <b>${status}</b> สำหรับ <b>${selectedItems.length}</b> รายการ`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'บันทึก (Save)',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: status === 'รับประกัน' ? '#10b981' : '#ef4444'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userName = currentUser.name || currentUser.IDRec || 'Unknown';
+
+    selectedItems.forEach(item => {
+        // Robust Data Lookup (simplified here as item should be robust)
+        // ... (We rely on item having necessary fields or globalBookingData syncing being enough)
+
+        const payload = {
+            ...item,
+            'Warranty Action': status,
+            'ActionStatus': status, // Sync standard status
+            'user': userName
+        };
+
+        // Logic for Finish and Datefinish
+        if (status === 'เคลมสำเร็จ' || status === 'ไม่รับประกัน') {
+            // payload['Finish'] = status; // REMOVED
+            payload['Datefinish'] = new Date().toLocaleString('en-GB');
+        }
+
+        // Optimistic Update
+        item['Warranty Action'] = status;
+        item['ActionStatus'] = status;
+        // if (payload['Finish']) item['Finish'] = payload['Finish']; // REMOVED
+        if (payload['Datefinish']) item['Datefinish'] = payload['Datefinish'];
+
+        SaveQueue.add(payload);
+    });
+
+    selectedClaimSentKeys.clear();
+    renderClaimSentTable();
+
+    // Refresh others
+    if (typeof renderSupplierTable === 'function') renderSupplierTable();
+    if (typeof renderHistoryTable === 'function') renderHistoryTable();
+
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: `Updated ${selectedItems.length} items to ${status}` });
 }
 
 function changeClaimSentPage(newPage) {
