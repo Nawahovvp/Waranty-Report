@@ -11,6 +11,11 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
     const filterElement = document.getElementById(filterId);
     const selectedPlant = filterElement ? filterElement.value : '';
 
+    const receiverFilterId = tabKey + 'ReceiverFilter';
+    populateDeckReceiverFilter(targetPlantCode, receiverFilterId);
+    const receiverFilterElement = document.getElementById(receiverFilterId);
+    const selectedReceiver = receiverFilterElement ? receiverFilterElement.value : '';
+
     const uniqueMap = new Map();
 
     globalBookingData.forEach(item => {
@@ -20,9 +25,18 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
 
         if (!slip) return;
         if (normalize(pcCode) !== normalize(targetPlantCode)) return;
-        if (selectedPlant && item['Plant'] !== selectedPlant) return;
+
+        if (selectedPlant) {
+            const itemPlant = String(item['Plant'] || '').replace(/^0+/, '');
+            if (itemPlant !== selectedPlant) return;
+        }
 
         const receiverVal = item['Claim Receiver'] || item.person || 'Unknown';
+
+        if (selectedReceiver) {
+            if (receiverVal !== selectedReceiver) return;
+        }
+
         const key = slip + '|' + receiverVal;
         const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
         const recripteInc = hasRecripte ? 1 : 0;
@@ -482,7 +496,10 @@ function populateDeckPlantFilter(targetPlantCode, filterId) {
         const pcCode = String(item['Plantcenter'] || '').trim();
         const normalize = (s) => s.replace(/^0+/, '');
         if (normalize(pcCode) === normalize(targetPlantCode)) {
-            if (item['Plant']) plants.add(item['Plant']);
+            if (item['Plant']) {
+                const p = String(item['Plant']).replace(/^0+/, '');
+                plants.add(p);
+            }
         }
     });
 
@@ -667,5 +684,33 @@ async function confirmReceiveItem(item) {
                 });
             }
         }
+    }
+}
+
+function populateDeckReceiverFilter(targetPlantCenter, filterId) {
+    const filterSelect = document.getElementById(filterId);
+    if (!filterSelect) return;
+
+    const currentSelection = filterSelect.value;
+    const receivers = new Set();
+    globalBookingData.forEach(item => {
+        const pcCode = String(item['Plantcenter'] || '').trim();
+        const normalize = (s) => s.replace(/^0+/, '');
+        if (normalize(pcCode) !== normalize(targetPlantCenter)) return;
+        const receiver = item['Claim Receiver'] || item.person;
+        if (receiver) receivers.add(receiver);
+    });
+
+    const sortedReceivers = Array.from(receivers).sort();
+    filterSelect.innerHTML = '<option value="">All Receivers</option>';
+    sortedReceivers.forEach(receiver => {
+        const option = document.createElement('option');
+        option.value = receiver;
+        option.textContent = receiver;
+        filterSelect.appendChild(option);
+    });
+
+    if (sortedReceivers.includes(currentSelection)) {
+        filterSelect.value = currentSelection;
     }
 }

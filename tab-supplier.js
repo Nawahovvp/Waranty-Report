@@ -133,7 +133,32 @@ function populateSupplierFilter() {
             filterSelect.appendChild(option);
         });
     }
+    // 2. Populate Product Filter
     populateSupplierProductFilter(supplierItems);
+
+    // 3. Populate Receiver Filter (New)
+    const receiverFilter = document.getElementById('supplierReceiverFilter');
+    if (receiverFilter) {
+        // Collect unique receivers
+        const receivers = new Set();
+        supplierItems.forEach(item => {
+            const receiver = item['Claim Receiver'];
+            if (receiver) receivers.add(receiver);
+        });
+        const sortedReceivers = Array.from(receivers).sort();
+
+        // Save current selection
+        const currentReceiver = receiverFilter.value;
+
+        receiverFilter.innerHTML = '<option value="">All Receivers</option>';
+        sortedReceivers.forEach(recv => {
+            const option = document.createElement('option');
+            option.value = recv;
+            option.textContent = recv;
+            if (recv === currentReceiver) option.selected = true;
+            receiverFilter.appendChild(option);
+        });
+    }
 }
 
 function renderSupplierTable() {
@@ -160,6 +185,14 @@ function renderSupplierTable() {
     if (supplierProductOptions.size > 0) {
         supplierData = supplierData.filter(item => supplierProductOptions.has(item['Product']));
     }
+
+    // Apply Receiver Filter (New)
+    const receiverFilter = document.getElementById('supplierReceiverFilter');
+    const receiverValue = receiverFilter ? receiverFilter.value : '';
+    if (receiverValue) {
+        supplierData = supplierData.filter(item => item['Claim Receiver'] === receiverValue);
+    }
+
     if (filterValue) {
         supplierData = supplierData.filter(item => item['Spare Part Name'] === filterValue);
     }

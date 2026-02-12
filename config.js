@@ -47,11 +47,13 @@ const BOOKING_COLUMNS = [
     { header: 'Serial Number', key: 'Serial Number' },
     { header: 'Store Code', key: 'Store Code' },
     { header: 'Store Name', key: 'Store Name' },
-    { header: 'Claim Receiver', key: 'Claim Receiver' },
-    { header: 'ส่งคลัง', key: 'Plantcenter' },
+    { header: 'ผู้รับผิดชอบเคลม', key: 'Claim Receiver' },
     { header: 'Plant', key: 'Plant' },
     { header: 'Product', key: 'Product' },
+    { header: 'ส่งคลัง', key: 'Plantcenter' },
     { header: 'วันที่จองรถ', key: 'Booking Date' },
+    { header: 'คลังพื้นที่', key: 'Recorder' },
+    { header: 'วันที่รับเคลม', key: 'Timestamp' },
 ];
 
 const SUPPLIER_COLUMNS = [
@@ -66,21 +68,21 @@ const SUPPLIER_COLUMNS = [
     { header: 'Serial Number', key: 'Serial Number' },
     { header: 'Store Code', key: 'Store Code' },
     { header: 'Store Name', key: 'Store Name' },
-    { header: 'Claim Receiver', key: 'Claim Receiver' },
+    { header: 'ผู้รับผิดชอบเคลม', key: 'Claim Receiver' },
     { header: 'รหัสช่าง', key: 'รหัสช่าง' },
     { header: 'ชื่อช่าง', key: 'ชื่อช่าง' },
     { header: 'Mobile', key: 'Mobile' },
     { header: 'ส่งคลัง', key: 'Plantcenter' },
     { header: 'Plant', key: 'Plant' },
     { header: 'Product', key: 'Product' },
-    { header: 'Warranty Action', key: 'Warranty Action' },
-    { header: 'Recorder', key: 'Recorder' },
-    { header: 'Recripte', key: 'Recripte' },
-    { header: 'Recripte Date', key: 'RecripteDate' },
-    { header: 'Timestamp', key: 'Timestamp' },
-    { header: 'วันที่จองรถ', key: 'Booking Date' },
-    { header: 'Claim Date', key: 'Claim Date' },
-    { header: 'ClaimSup', key: 'ClaimSup' }
+    { header: 'สถานะเคลม', key: 'Warranty Action' },
+    // { header: 'คลังพื้นที่', key: 'Recorder' },
+    { header: 'ศูนย์อะไหล่', key: 'Recripte' },
+    { header: 'วันที่ศูนย์อะไหล่', key: 'RecripteDate' },
+    // { header: 'วันที่รับเคลม', key: 'Timestamp' },
+    // { header: 'วันที่จองรถ', key: 'Booking Date' },
+    { header: 'วันที่ส่งเคลม', key: 'Claim Date' },
+    { header: 'ผุ้ส่งเคลม', key: 'ClaimSup' }
 ];
 
 let allEmployees = [];

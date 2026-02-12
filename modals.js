@@ -125,9 +125,9 @@ function openEditModal(item) {
     const label = document.querySelector('#editModal label[for="editSerialInput"]');
     const input = document.getElementById('editSerialInput');
 
-    if (headerTitle) headerTitle.textContent = isLE ? 'Edit Code Number' : 'Edit Serial Number';
-    if (label) label.textContent = isLE ? 'Code Number' : 'Serial Number';
-    if (input) input.placeholder = isLE ? 'Enter new code number' : 'Enter new serial number';
+    if (headerTitle) headerTitle.textContent = isLE ? 'Edit LES Code' : 'Edit Serial Number';
+    if (label) label.textContent = isLE ? 'LES Code' : 'Serial Number';
+    if (input) input.placeholder = isLE ? 'Enter new LES Code' : 'Enter new serial number';
 
     const btnExample = document.getElementById('btnExampleLE');
     if (btnExample) {

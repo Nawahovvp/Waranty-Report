@@ -569,6 +569,13 @@
                         onchange="renderDeckView('0301', 'navaNakornDeck', 'navanakorn')">
                         <option value="">All Plants</option>
                     </select>
+                    <label for="navanakornReceiverFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-left: 0.5rem;">Receiver:</label>
+                    <select id="navanakornReceiverFilter" class="filter-select"
+                        style="padding: 0.35rem; border-radius: 4px; border: 1px solid var(--border-color);"
+                        onchange="renderDeckView('0301', 'navaNakornDeck', 'navanakorn')">
+                        <option value="">All Receivers</option>
+                    </select>
                 </div>
                 <div id="navanakornDeckWrapper" style="padding: 1rem; overflow-y: auto; flex: 1;">
                     <div id="navaNakornDeck" class="deck-container">
@@ -616,6 +623,13 @@
                         onchange="renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi')">
                         <option value="">All Plants</option>
                     </select>
+                    <label for="vibhavadiReceiverFilter"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-left: 0.5rem;">Receiver:</label>
+                    <select id="vibhavadiReceiverFilter" class="filter-select"
+                        style="padding: 0.35rem; border-radius: 4px; border: 1px solid var(--border-color);"
+                        onchange="renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi')">
+                        <option value="">All Receivers</option>
+                    </select>
                 </div>
                 <div id="vibhavadiDeckWrapper" style="padding: 1rem; overflow-y: auto; flex: 1;">
                     <div id="vibhavadiDeck" class="deck-container">
@@ -657,6 +671,16 @@
                     <input type="text" id="supplierSearchInput" placeholder="Search..."
                         style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.875rem; width: 250px;"
                         oninput="handleSupplierSearch()">
+
+                    <!-- Receiver Filter -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem;">
+                        <label for="supplierReceiverFilter"
+                            style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">Receiver:</label>
+                        <select id="supplierReceiverFilter" class="filter-select"
+                            style="min-width: 120px; padding: 0.35rem;" onchange="renderSupplierTable()">
+                            <option value="">All Receivers</option>
+                        </select>
+                    </div>
 
                     <!-- Multi-Select Product Filter -->
                     <div style="position: relative; margin-left: 1rem;">

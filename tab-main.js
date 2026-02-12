@@ -117,6 +117,9 @@ function renderTable() {
             const isReadyForClaim = !item.status && !isSerialInvalidForClaim(item) && (isLE || hasMobile);
             const readyColumns = ['work order', 'Spare Part Code', 'Spare Part Name'];
 
+            const isSerialBlinking = isSerialInvalidForClaim(item);
+            const isMobileBlinking = !item.status && !isLE && (!item.technicianPhone || String(item.technicianPhone).trim() === '');
+
             if (item.status && greenColumns.includes(col.key)) {
                 const span = document.createElement('span');
                 span.textContent = value;
@@ -130,6 +133,11 @@ function renderTable() {
                 const span = document.createElement('span');
                 span.textContent = value;
                 span.style.backgroundColor = '#dcfce7'; span.style.color = '#166534'; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
+                td.appendChild(span);
+            } else if (!item.status && (isSerialBlinking || isMobileBlinking) && col.key === 'status') {
+                const span = document.createElement('span');
+                span.textContent = 'Edit';
+                span.style.backgroundColor = '#fef08a'; span.style.color = '#854d0e'; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
                 td.appendChild(span);
             } else if (!item.status && isMissingStore && col.key === 'status') {
                 const span = document.createElement('span');
