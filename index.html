@@ -319,6 +319,87 @@
         </div>
     </div>
 
+    <!-- User Profile Modal (Canva Style) -->
+    <div id="userProfileModal" class="modal-overlay" style="display: none; z-index: 20000;">
+        <div class="user-profile-card">
+
+            <!-- Cover Header -->
+            <div class="profile-cover">
+                <button class="close-profile-btn" onclick="closeUserProfile()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="profile-body-canva">
+                <!-- Avatar Section -->
+                <div class="avatar-section">
+                    <div id="userAvatar" class="user-avatar-canva">UN</div>
+                    <h2 id="profileName" class="profile-name-canva">User Name</h2>
+                    <p id="profilePosition" class="profile-position-canva">Position Title</p>
+                    <div id="profileStatusBadge" class="status-badge-canva">Active</div>
+                </div>
+
+                <!-- Divider -->
+                <div class="profile-divider"></div>
+
+                <!-- Details List -->
+                <div class="profile-details-list">
+                    <div class="detail-row">
+                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg></div>
+                        <div class="detail-text-group">
+                            <label>ID</label>
+                            <span id="profileId">...</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 21h18" />
+                                <path d="M5 21V7l8-4 8 4v14" />
+                                <path d="M13 21V11l-4 4-4-4v10" />
+                            </svg></div>
+                        <div class="detail-text-group">
+                            <label>Unit / Team</label>
+                            <span id="profileUnit">...</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-row">
+                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg></div>
+                        <div class="detail-text-group">
+                            <label>Plant</label>
+                            <span id="profilePlant">...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-footer-canva">
+                <button class="btn-logout-canva" onclick="handleLogout()">
+                    Log Out
+                </button>
+            </div>
+        </div>
+    </div>
+
     </div>
 
     <!-- Main Application -->

@@ -232,9 +232,14 @@ function renderBookingTable() {
     }
 
     let filteredData = globalBookingData;
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    const userPlant = currentUser['Plant'] ? currentUser['Plant'].toString().trim().padStart(4, '0') : null;
-    if (userPlant) filteredData = filteredData.filter(row => { const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : ''; return rowPlant === userPlant; });
+    const userPlant = (typeof getEffectiveUserPlant === 'function') ? getEffectiveUserPlant() : null;
+
+    if (userPlant) {
+        filteredData = filteredData.filter(row => {
+            const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
+            return rowPlant === userPlant;
+        });
+    }
 
     filteredData = filteredData.filter(item => {
         const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';

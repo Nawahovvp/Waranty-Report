@@ -566,6 +566,16 @@ function renderSupplierTable() {
         return item['Recripte'] && item['Recripte'].trim() !== '';
     });
 
+    // 1. FILTER BY USER PLANT (Added)
+    const userPlant = getEffectiveUserPlant();
+    if (userPlant) {
+        supplierData = supplierData.filter(item => {
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+        // Console log for debug if needed, but keeping it clean
+    }
+
     // Populate Product Filter Options (using base supplier data)
     // Only populate if not already populated? To prevent re-rendering dropdown while open.
     // Ideally we check if dropdown is empty.
@@ -938,6 +948,15 @@ function renderClaimSentTable() {
         return hasRecripte && hasClaimSup;
     });
 
+    // 1. FILTER BY USER PLANT (Added)
+    const userPlant = getEffectiveUserPlant();
+    if (userPlant) {
+        allowedData = allowedData.filter(item => {
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+    }
+
     if (filterValue) {
         allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
     }
@@ -1087,6 +1106,31 @@ function renderHistoryTable() {
 
     // Data Source: Global Booking Data (ALL)
     let allowedData = globalBookingData;
+
+    // Filter by User Plant (Refactored)
+    const userPlant = getEffectiveUserPlant();
+
+    console.log('[History Filter] Effective User Plant:', userPlant);
+
+    if (userPlant) {
+        allowedData = allowedData.filter(item => {
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+
+        console.log(`[History Filter] Filtered Result: ${allowedData.length} items returned.`);
+
+        // Debug Alert Removed
+    } else {
+        console.warn('[History Filter] No Plant found for user. Showing ALL data.');
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: 'No Plant Found',
+            text: 'User profile has no Plant data. Showing all.'
+        });
+    }
 
     // Search Filter
     if (searchTerm) {

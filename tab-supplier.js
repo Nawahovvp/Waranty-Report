@@ -178,6 +178,15 @@ function renderSupplierTable() {
         if (!hasClaimSup || !claimDate) return true;
         return isDateToday(claimDate);
     });
+
+    // 1. FILTER BY USER PLANT (Added)
+    const userPlant = getEffectiveUserPlant();
+    if (userPlant) {
+        supplierData = supplierData.filter(item => {
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+    }
     const dropdown = document.getElementById('supplierProductDropdown');
     if (dropdown && dropdown.children.length === 0) {
         populateSupplierProductFilter(supplierData);
@@ -650,6 +659,15 @@ function renderClaimSentTable() {
         return hasRecripte && hasClaimSup;
     });
 
+    // 1. FILTER BY USER PLANT (Added)
+    const userPlant = getEffectiveUserPlant();
+    if (userPlant) {
+        allowedData = allowedData.filter(item => {
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+    }
+
     if (filterValue) {
         allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
     }
@@ -983,6 +1001,28 @@ function renderHistoryTable() {
 
     // Data Source: Global Booking Data (ALL)
     let allowedData = globalBookingData;
+
+    // 1. FILTER BY USER PLANT (Added)
+    const userPlant = getEffectiveUserPlant();
+    if (userPlant) {
+        allowedData = allowedData.filter(item => {
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+
+        // Debug Alert Removed as per user request
+    } else {
+        // Warn if no plant found (unless Admin)
+        if (!isUserAdmin()) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'warning',
+                title: 'No Plant Found',
+                text: 'User profile has no Plant data. Showing all.'
+            });
+        }
+    }
 
     // Search Filter
     if (searchTerm) {

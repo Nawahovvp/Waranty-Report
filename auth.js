@@ -4,7 +4,16 @@ async function initAuth() {
 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
-        const user = JSON.parse(savedUser);
+        let user = JSON.parse(savedUser);
+        // Refresh user data from fresh fetch
+        if (allEmployees && allEmployees.length > 0) {
+            const freshUser = allEmployees.find(emp => String(emp['IDRec']) === String(user['IDRec']));
+            if (freshUser) {
+                console.log("[Auth] Refreshing user data from sheet...", freshUser);
+                user = freshUser;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+            }
+        }
         showApp(user);
     } else {
         document.getElementById('loginOverlay').style.display = 'flex';
@@ -52,32 +61,86 @@ function showApp(user) {
     const displayUserName = document.getElementById('displayUserName');
     if (displayUserName) displayUserName.textContent = user['Name'] || user['IDRec'];
 
+    // Debug User Object
+    console.log("Current User Object:", user);
+    console.log("User Keys:", Object.keys(user));
+
+    const findKey = (obj, keyName) => Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+    const statusKey = findKey(user, 'status') || findKey(user, 'สถานะ') || findKey(user, 'state');
+    const userStatus = statusKey ? user[statusKey] : '';
+
     const details = [
         `ID: ${user['IDRec']}`,
         user['ตำแหน่ง'],
         user['หน่วยงาน'],
         user['Team'],
-        user['Plant']
+        user['Plant'],
+        userStatus ? `Status: ${userStatus}` : ''
     ].filter(Boolean).join(' | ');
     document.getElementById('displayUserDetail').textContent = details;
 
     loadTableData();
 }
 
+function openUserProfile() {
+    const savedUser = localStorage.getItem('currentUser');
+    if (!savedUser) return;
+    const user = JSON.parse(savedUser);
+
+    const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val || '-';
+    };
+
+    setText('profileId', user['IDRec']);
+    setText('profileName', user['Name'] || user['IDRec']);
+    setText('profilePosition', user['ตำแหน่ง']);
+    setText('profileUnit', (user['หน่วยงาน'] || '') + ' ' + (user['Team'] || ''));
+    setText('profilePlant', user['Plant']);
+
+    const findKey = (obj, keyName) => Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+    const statusKey = findKey(user, 'status') || findKey(user, 'สถานะ') || findKey(user, 'state');
+    const userStatus = statusKey ? user[statusKey] : 'Active';
+
+    // Update Badge
+    const badge = document.getElementById('profileStatusBadge');
+    if (badge) {
+        badge.textContent = userStatus;
+        // Optional: dynamic color based on status
+        if (String(userStatus).toLowerCase() === 'admin') {
+            badge.style.background = '#fef3c7';
+            badge.style.color = '#d97706';
+            badge.style.borderColor = '#fcd34d';
+        } else {
+            badge.style.background = '#ecfdf5';
+            badge.style.color = '#059669';
+            badge.style.borderColor = '#d1fae5';
+        }
+    }
+
+    // Avatar
+    const name = user['Name'] || user['IDRec'] || 'U';
+    const initials = String(name).charAt(0).toUpperCase();
+    const avatarEl = document.getElementById('userAvatar');
+    if (avatarEl) avatarEl.textContent = initials;
+
+    const modal = document.getElementById('userProfileModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeUserProfile() {
+    const modal = document.getElementById('userProfileModal');
+    if (modal) modal.style.display = 'none';
+}
+
 function toggleMenu() {
-    const menu = document.getElementById('userDropdown');
-    menu.classList.toggle('show');
+    openUserProfile();
 }
 
 window.onclick = function (event) {
-    if (!event.target.closest('.menu-container')) {
-        const dropdowns = document.getElementsByClassName("dropdown-menu");
-        for (let i = 0; i < dropdowns.length; i++) {
-            const openDropdown = dropdowns[i];
-            if (openDropdown.classList.contains('show')) {
-                openDropdown.classList.remove('show');
-            }
-        }
+    const modal = document.getElementById('userProfileModal');
+    if (event.target === modal) {
+        closeUserProfile();
     }
 }
 

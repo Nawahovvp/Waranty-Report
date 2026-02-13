@@ -18,6 +18,9 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
 
     const uniqueMap = new Map();
 
+    // Get User Plant for security filtering
+    const userPlant = (typeof getEffectiveUserPlant === 'function') ? getEffectiveUserPlant() : null;
+
     globalBookingData.forEach(item => {
         const slip = item['Booking Slip'];
         const pcCode = String(item['Plantcenter'] || '').trim();
@@ -25,6 +28,12 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
 
         if (!slip) return;
         if (normalize(pcCode) !== normalize(targetPlantCode)) return;
+
+        // SECURITY FILTER: Matches User Plant?
+        if (userPlant) {
+            const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0'); // Normalize 0304
+            if (itemPlant !== userPlant) return;
+        }
 
         if (selectedPlant) {
             const itemPlant = String(item['Plant'] || '').replace(/^0+/, '');
@@ -208,6 +217,14 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     // Filter Data
     let detailData = globalBookingData.filter(item => {
         const itemReceiver = item['Claim Receiver'] || item.person || 'Unknown';
+        // SECURITY: Check User Plant if valid
+        if (typeof getEffectiveUserPlant === 'function') {
+            const userPlant = getEffectiveUserPlant();
+            if (userPlant) {
+                const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0');
+                if (itemPlant !== userPlant) return false;
+            }
+        }
         return item['Booking Slip'] === slip && itemReceiver === targetReceiver;
     });
 

@@ -208,3 +208,66 @@ function formatPhoneNumber(phone) {
 function getBookingKey(row) {
     return (row['Work Order'] || '') + '_' + (row['Spare Part Code'] || '') + '_' + (row['Old Material Code'] || '');
 }
+
+/**
+ * Checks if the current user has Admin status.
+ * Returns true if Status/status/สถานะ is 'Admin' (case-insensitive).
+ */
+function isUserAdmin() {
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const findKey = (obj, keyName) => Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+        const statusKey = findKey(currentUser, 'status') || findKey(currentUser, 'สถานะ') || findKey(currentUser, 'state');
+        const status = statusKey ? String(currentUser[statusKey]).trim().toLowerCase() : '';
+        return status === 'admin';
+    } catch (e) {
+        console.error("Error in isUserAdmin:", e);
+        return false;
+    }
+}
+
+/**
+ * Retrieves the effective Plant code for the current user.
+ * Checks 'Plant', 'plant', and falls back to extracting 3-4 digit code from Team/Unit/etc.
+ * Returns normalized 4-digit string (e.g. "0304") or null if not found OR if user is Admin.
+ */
+function getEffectiveUserPlant() {
+    // 0. Admin Bypass: If Admin, return null (no filter)
+    if (isUserAdmin()) {
+        console.log("[Plant Helper] User is Admin. Bypassing Plant Filter.");
+        return null;
+    }
+
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        let userPlantRaw = currentUser['Plant'] || currentUser['plant'];
+
+        // 1. Fuzzy Key Search
+        if (!userPlantRaw) {
+            const fuzzyKey = Object.keys(currentUser).find(k => k.trim().toLowerCase() === 'plant');
+            if (fuzzyKey) userPlantRaw = currentUser[fuzzyKey];
+        }
+
+        // 2. Fallback Extraction from text fields
+        if (!userPlantRaw) {
+            const potentialSources = [currentUser['Team'], currentUser['Unit'], currentUser['หน่วยงาน'], currentUser['สังกัด']];
+            for (const source of potentialSources) {
+                if (source && typeof source === 'string') {
+                    const match = source.match(/\b\d{3,4}\b/);
+                    if (match) {
+                        userPlantRaw = match[0];
+                        console.log(`[Plant Helper] Extracted '${userPlantRaw}' from '${source}'`);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (userPlantRaw) {
+            return String(userPlantRaw).trim().padStart(4, '0');
+        }
+    } catch (e) {
+        console.error("Error in getEffectiveUserPlant:", e);
+    }
+    return null;
+}

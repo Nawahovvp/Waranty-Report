@@ -33,7 +33,17 @@ function applyFilters() {
     const selectedStatus = document.getElementById('statusFilter').value;
     const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
 
+    const userPlant = (typeof getEffectiveUserPlant === 'function') ? getEffectiveUserPlant() : null;
+
     displayedData = fullData.filter(item => {
+        // SECURITY FILTER
+        if (userPlant) {
+            const p1 = item.scrap ? (item.scrap['plant'] || item.scrap['Plant']) : '';
+            const p2 = item.fullRow ? (item.fullRow['plant'] || item.fullRow['Plant']) : '';
+            const itemPlant = String(p1 || p2 || '').trim().padStart(4, '0');
+            if (itemPlant !== '0000' && itemPlant !== userPlant) return false; // Fail if plant defined and mismatch
+        }
+
         const matchPart = selectedPart ? item.scrap['Spare Part Name'] === selectedPart : true;
         let matchStatus = true;
         if (selectedStatus === 'Pending') matchStatus = !item.status;

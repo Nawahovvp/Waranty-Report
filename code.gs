@@ -41,7 +41,7 @@ function doPost(e) {
 
     // Check & Add Missing Columns dynamically
     let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const newColumns = ["Plantcenter", "Note", "Recripte", "RecripteDate", "Claim Date", "ClaimSup", "Finish", "Datefinish"];
+    const newColumns = ["Plantcenter", "Note", "Recripte", "RecripteDate", "Claim Date", "ClaimSup", "Datefinish"];
     
     newColumns.forEach(newCol => {
         const exists = headers.some(h => String(h).toLowerCase().trim() === newCol.toLowerCase());
@@ -51,18 +51,6 @@ function doPost(e) {
             headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
         }
     });
-
-    // Find Row FIRST to determine if we need to preserve Timestamp
-    const keyIndex = headers.indexOf("KEY");
-    const timestampIndex = headers.indexOf("Timestamp");
-    const allValues = sheet.getDataRange().getValues();
-    let rowIndex = -1;
-    for (let i = 1; i < allValues.length; i++) {
-        if (String(allValues[i][keyIndex]) === String(key)) {
-            rowIndex = i + 1;
-            break;
-        }
-    }
 
     // Find Row FIRST to determine if we need to preserve Timestamp
     const keyIndex = headers.indexOf("KEY");
