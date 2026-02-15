@@ -31,8 +31,14 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
 
         // SECURITY FILTER: Matches User Plant?
         if (userPlant) {
-            const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0'); // Normalize 0304
-            if (itemPlant !== userPlant) return;
+            const userStatus = getCurrentUserStatus();
+            // Allow if User Status matches Claim Receiver
+            if (userStatus && item['Claim Receiver'] === userStatus) {
+                // Allow
+            } else {
+                const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0'); // Normalize 0304
+                if (itemPlant !== userPlant) return;
+            }
         }
 
         if (selectedPlant) {
@@ -220,9 +226,15 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
         // SECURITY: Check User Plant if valid
         if (typeof getEffectiveUserPlant === 'function') {
             const userPlant = getEffectiveUserPlant();
+            const userStatus = getCurrentUserStatus();
             if (userPlant) {
-                const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0');
-                if (itemPlant !== userPlant) return false;
+                // Allow if User Status matches Claim Receiver
+                if (userStatus && item['Claim Receiver'] === userStatus) {
+                    // Allow
+                } else {
+                    const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0');
+                    if (itemPlant !== userPlant) return false;
+                }
             }
         }
         return item['Booking Slip'] === slip && itemReceiver === targetReceiver;

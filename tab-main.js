@@ -38,10 +38,18 @@ function applyFilters() {
     displayedData = fullData.filter(item => {
         // SECURITY FILTER
         if (userPlant) {
-            const p1 = item.scrap ? (item.scrap['plant'] || item.scrap['Plant']) : '';
-            const p2 = item.fullRow ? (item.fullRow['plant'] || item.fullRow['Plant']) : '';
-            const itemPlant = String(p1 || p2 || '').trim().padStart(4, '0');
-            if (itemPlant !== '0000' && itemPlant !== userPlant) return false; // Fail if plant defined and mismatch
+            const userStatus = getCurrentUserStatus();
+            const claimReceiver = (item.fullRow ? item.fullRow['Claim Receiver'] : '') || item.person || '';
+
+            // Allow if User Status matches Claim Receiver
+            if (userStatus && claimReceiver === userStatus) {
+                // Allow
+            } else {
+                const p1 = item.scrap ? (item.scrap['plant'] || item.scrap['Plant']) : '';
+                const p2 = item.fullRow ? (item.fullRow['plant'] || item.fullRow['Plant']) : '';
+                const itemPlant = String(p1 || p2 || '').trim().padStart(4, '0');
+                if (itemPlant !== '0000' && itemPlant !== userPlant) return false; // Fail if plant defined and mismatch
+            }
         }
 
         const matchPart = selectedPart ? item.scrap['Spare Part Name'] === selectedPart : true;

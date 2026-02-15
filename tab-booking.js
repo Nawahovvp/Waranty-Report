@@ -233,9 +233,13 @@ function renderBookingTable() {
 
     let filteredData = globalBookingData;
     const userPlant = (typeof getEffectiveUserPlant === 'function') ? getEffectiveUserPlant() : null;
+    const userStatus = getCurrentUserStatus(); // Get user status
 
     if (userPlant) {
         filteredData = filteredData.filter(row => {
+            // Allow if User Status matches Claim Receiver
+            if (userStatus && row['Claim Receiver'] === userStatus) return true;
+
             const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
             return rowPlant === userPlant;
         });

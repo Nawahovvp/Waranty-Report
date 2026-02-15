@@ -227,6 +227,22 @@ function isUserAdmin() {
 }
 
 /**
+ * Retrieves the current user's Status (e.g., 'Admin', 'Mon', 'Poom').
+ * Returns trimmed string or empty string.
+ */
+function getCurrentUserStatus() {
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const findKey = (obj, keyName) => Object.keys(obj).find(k => k.toLowerCase().trim() === keyName.toLowerCase());
+        const statusKey = findKey(currentUser, 'status') || findKey(currentUser, 'สถานะ') || findKey(currentUser, 'state');
+        return statusKey ? String(currentUser[statusKey]).trim() : '';
+    } catch (e) {
+        console.error("Error in getCurrentUserStatus:", e);
+        return '';
+    }
+}
+
+/**
  * Retrieves the effective Plant code for the current user.
  * Checks 'Plant', 'plant', and falls back to extracting 3-4 digit code from Team/Unit/etc.
  * Returns normalized 4-digit string (e.g. "0304") or null if not found OR if user is Admin.

@@ -1,6 +1,5 @@
 async function initAuth() {
     allEmployees = await fetchData(EMPLOYEE_SHEET_URL);
-    allEmployees = await fetchData(EMPLOYEE_SHEET_URL); // Double fetch in original code, kept for consistency
 
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {

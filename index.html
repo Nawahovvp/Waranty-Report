@@ -7,6 +7,7 @@
     <title>บันทึกข้อมูล</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script>
         // Suppress Tailwind CDN warning
         const originalWarn = console.warn;
@@ -94,6 +95,177 @@
         .invalid-serial {
             animation: border-blink-red 1.5s infinite ease-in-out;
         }
+
+        /* Canva Style Modal for Confirm Claim */
+        .modal-card-canva {
+            background: white;
+            width: 90%;
+            max-width: 420px;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            font-family: 'Prompt', sans-serif;
+            animation: slideUp 0.3s ease-out;
+            position: relative;
+        }
+
+        .modal-icon-canva {
+            width: 60px;
+            height: 60px;
+            background-color: #EDE9FE;
+            color: #7C3AED;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+        }
+
+        .modal-title-canva {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle-canva {
+            font-size: 16px;
+            color: #6B7280;
+            margin-bottom: 24px;
+        }
+
+        .item-details-canva {
+            background-color: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            margin-bottom: 24px;
+        }
+
+        .item-row-canva {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .item-row-canva:last-child { margin-bottom: 0; }
+
+        .label-canva { color: #6B7280; font-weight: 400; }
+        .value-canva { color: #1F2937; font-weight: 500; text-align: right; flex: 1; margin-left: 12px; }
+        .highlight-canva { color: #7C3AED; font-weight: 600; }
+
+        .modal-actions-canva { display: flex; gap: 12px; }
+
+        .btn-canva { flex: 1; padding: 12px; border-radius: 10px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; font-family: 'Prompt', sans-serif; }
+        .btn-cancel-canva { background-color: white; border: 1px solid #D1D5DB; color: #374151; }
+        .btn-cancel-canva:hover { background-color: #F3F4F6; }
+        .btn-confirm-canva { background: linear-gradient(135deg, #7C3AED, #8B5CF6); color: white; box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.3); }
+        .btn-confirm-canva:hover { transform: translateY(-1px); box-shadow: 0 6px 8px -1px rgba(124, 58, 237, 0.4); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* User Profile Modal Redesign */
+        .user-profile-card {
+            background: white;
+            width: 100%;
+            max-width: 340px;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            font-family: 'Prompt', sans-serif;
+            animation: slideUp 0.3s ease-out;
+            position: relative;
+        }
+
+        .profile-cover {
+            height: 90px;
+            background: linear-gradient(135deg, #7C3AED, #C084FC);
+            position: relative;
+        }
+
+        .close-profile-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+            transition: background 0.2s;
+        }
+        .close-profile-btn:hover { background: rgba(255, 255, 255, 0.4); }
+
+        .profile-body-canva {
+            padding: 0 20px 20px;
+            margin-top: -40px; /* Pull up to overlap cover */
+            position: relative;
+            text-align: center;
+        }
+
+        .user-avatar-canva {
+            width: 80px;
+            height: 80px;
+            background-color: #F3F4F6;
+            border: 4px solid white;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 600;
+            color: #4B5563;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-name-canva {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 2px;
+        }
+
+        .profile-position-canva {
+            font-size: 13px;
+            color: #6B7280;
+            margin-bottom: 10px;
+        }
+
+        .status-badge-canva {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background-color: #ECFDF5;
+            color: #059669;
+            border: 1px solid #D1FAE5;
+        }
+
+        .profile-divider { height: 1px; background-color: #E5E7EB; margin: 16px 0; }
+        .profile-details-list { text-align: left; }
+        .detail-row { display: flex; align-items: center; margin-bottom: 12px; }
+        .detail-row:last-child { margin-bottom: 0; }
+        .detail-icon-box { width: 32px; height: 32px; background-color: #F9FAFB; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; margin-right: 10px; }
+        .detail-text-group { display: flex; flex-direction: column; }
+        .detail-text-group label { font-size: 10px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px; }
+        .detail-text-group span { font-size: 13px; color: #374151; font-weight: 500; }
+        .profile-footer-canva { padding: 12px 20px; background-color: #F9FAFB; border-top: 1px solid #E5E7EB; }
+        .btn-logout-canva { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #FECACA; background-color: white; color: #EF4444; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: 'Prompt', sans-serif; }
+        .btn-logout-canva:hover { background-color: #FEF2F2; }
     </style>
 </head>
 
@@ -348,45 +520,29 @@
 
                 <!-- Details List -->
                 <div class="profile-details-list">
-                    <div class="detail-row">
-                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                            </svg></div>
-                        <div class="detail-text-group">
-                            <label>ID</label>
-                            <span id="profileId">...</span>
+                    <!-- Combined ID and Plant Row -->
+                    <div class="detail-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center;">
+                            <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
+                            <div class="detail-text-group">
+                                <label>ID</label>
+                                <span id="profileId">...</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
+                            <div class="detail-text-group">
+                                <label>Plant</label>
+                                <span id="profilePlant">...</span>
+                            </div>
                         </div>
                     </div>
 
                     <div class="detail-row">
-                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 21h18" />
-                                <path d="M5 21V7l8-4 8 4v14" />
-                                <path d="M13 21V11l-4 4-4-4v10" />
-                            </svg></div>
+                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18" /><path d="M5 21V7l8-4 8 4v14" /><path d="M13 21V11l-4 4-4-4v10" /></svg></div>
                         <div class="detail-text-group">
                             <label>Unit / Team</label>
                             <span id="profileUnit">...</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-row">
-                        <div class="detail-icon-box"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                                <circle cx="12" cy="10" r="3"></circle>
-                            </svg></div>
-                        <div class="detail-text-group">
-                            <label>Plant</label>
-                            <span id="profilePlant">...</span>
                         </div>
                     </div>
                 </div>
@@ -813,10 +969,7 @@
             <div id="tab-content-claimSent" class="tab-content">
                 <div class="filter-bar">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <select id="claimSentPartFilter" class="filter-select"
-                            onchange="currentClaimSentPage=1; renderClaimSentTable()">
-                            <option value="">All Spare Parts</option>
-                        </select>
+
                         <select id="claimSentReceiverFilter" class="filter-select"
                             onchange="currentClaimSentPage=1; renderClaimSentTable()">
                             <option value="">All Receivers</option>
@@ -994,6 +1147,37 @@
                             <i class="fas fa-undo"></i> ยกเลิก (Cancel)
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Claim Modal (Canva Style) -->
+        <div id="confirmClaimModal" class="modal-overlay" style="display: none; z-index: 3000;">
+            <div class="modal-card-canva">
+                <div class="modal-icon-canva">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <h2 class="modal-title-canva">Confirm Send Claim?</h2>
+                <p class="modal-subtitle-canva" id="confirmClaimSubtitle">Update 1 item?</p>
+                
+                <div class="item-details-canva">
+                    <div class="item-row-canva">
+                        <span class="label-canva">Item</span>
+                        <span class="value-canva highlight-canva" id="confirmClaimItem">5Y หลอดไฟสั้นL&E LED-T8 1250LM/865 7.4W</span>
+                    </div>
+                    <div class="item-row-canva">
+                        <span class="label-canva">Supplier</span>
+                        <span class="value-canva" id="confirmClaimSupplier">7512411</span>
+                    </div>
+                    <div class="item-row-canva">
+                        <span class="label-canva">Date</span>
+                        <span class="value-canva" id="confirmClaimDate">15/02/2026</span>
+                    </div>
+                </div>
+
+                <div class="modal-actions-canva">
+                    <button class="btn-canva btn-cancel-canva" onclick="document.getElementById('confirmClaimModal').style.display='none'">Cancel</button>
+                    <button class="btn-canva btn-confirm-canva" id="btnConfirmClaimAction">Confirm</button>
                 </div>
             </div>
         </div>

@@ -5,6 +5,7 @@ let currentHistoryPage = 1;
 let currentSupplierDisplayedData = [];
 // Global Selection Helper
 let selectedSupplierKeys = new Set();
+let activeClaimDateFilter = null;
 function getSupplierKey(item) {
     return (item['Work Order'] || '') + '|' + (item['Spare Part Code'] || '') + '|' + (item['Serial Number'] || '');
 }
@@ -181,8 +182,12 @@ function renderSupplierTable() {
 
     // 1. FILTER BY USER PLANT (Added)
     const userPlant = getEffectiveUserPlant();
+    const userStatus = getCurrentUserStatus();
     if (userPlant) {
         supplierData = supplierData.filter(item => {
+            // Allow if User Status matches Claim Receiver
+            if (userStatus && item['Claim Receiver'] === userStatus) return true;
+
             const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
             return String(itemPlant).trim().padStart(4, '0') === userPlant;
         });
@@ -606,7 +611,6 @@ function changeSupplierPage(newPage) { if (newPage < 1) return; currentSupplierP
 // ==========================================================
 
 function populateClaimSentFilter() {
-    const filterSelect = document.getElementById('claimSentPartFilter');
     const receiverSelect = document.getElementById('claimSentReceiverFilter');
 
     // Filter Items: Must have 'Recripte' AND 'ClaimSup'
@@ -615,17 +619,6 @@ function populateClaimSentFilter() {
         const hasClaimSup = item['ClaimSup'] && item['ClaimSup'].trim() !== '';
         return hasRecripte && hasClaimSup;
     });
-
-    if (filterSelect) {
-        const parts = [...new Set(claimSentItems.map(item => item['Spare Part Name']).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
-        filterSelect.innerHTML = '<option value="">All Spare Parts</option>';
-        parts.forEach(part => {
-            const option = document.createElement('option');
-            option.value = part;
-            option.textContent = part;
-            filterSelect.appendChild(option);
-        });
-    }
 
     if (receiverSelect) {
         const receivers = [...new Set(claimSentItems.map(item => item['Claim Receiver']).filter(Boolean))].sort();
@@ -645,11 +638,10 @@ function renderClaimSentTable() {
     const tableBody = document.getElementById('claimSentTableBody');
 
     // Filter Data: 'Recripte' AND 'ClaimSup'
-    const filterSelect = document.getElementById('claimSentPartFilter');
+    // Filter Data: 'Recripte' AND 'ClaimSup'
     const receiverSelect = document.getElementById('claimSentReceiverFilter');
     const searchInput = document.getElementById('claimSentSearchInput');
 
-    const filterValue = filterSelect ? filterSelect.value : '';
     const receiverValue = receiverSelect ? receiverSelect.value : '';
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
@@ -661,19 +653,23 @@ function renderClaimSentTable() {
 
     // 1. FILTER BY USER PLANT (Added)
     const userPlant = getEffectiveUserPlant();
+    const userStatus = getCurrentUserStatus();
     if (userPlant) {
         allowedData = allowedData.filter(item => {
+            // Allow if User Status matches Claim Receiver
+            if (userStatus && item['Claim Receiver'] === userStatus) return true;
+
             const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
             return String(itemPlant).trim().padStart(4, '0') === userPlant;
         });
     }
 
-    if (filterValue) {
-        allowedData = allowedData.filter(item => item['Spare Part Name'] === filterValue);
-    }
-
     if (receiverValue) {
         allowedData = allowedData.filter(item => item['Claim Receiver'] === receiverValue);
+    }
+
+    if (activeClaimDateFilter) {
+        allowedData = allowedData.filter(item => (item['Claim Date'] || 'Unknown') === activeClaimDateFilter);
     }
 
     if (searchTerm) {
@@ -682,27 +678,50 @@ function renderClaimSentTable() {
         });
     }
 
-    // Sort Data: Spare Part Name (Asc)
-    const sortedData = [...allowedData].reverse().sort((a, b) => {
+    // Sort Data: Claim Date (Desc), then Spare Part Name (Asc) - Requested by User
+    const sortedData = [...allowedData].sort((a, b) => {
+        const getDateTimestamp = (d) => {
+            if (!d) return 0;
+            const parts = String(d).split('/');
+            if (parts.length === 3) {
+                return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+            }
+            return 0;
+        };
+
+        const dateA = getDateTimestamp(a['Claim Date']);
+        const dateB = getDateTimestamp(b['Claim Date']);
+
+        if (dateB !== dateA) return dateB - dateA; // Descending Date
+
+        const prodA = a['Product'] || '';
+        const prodB = b['Product'] || '';
+        const prodCompare = prodA.localeCompare(prodB, 'th');
+        if (prodCompare !== 0) return prodCompare;
+
         const nameA = a['Spare Part Name'] || '';
         const nameB = b['Spare Part Name'] || '';
         return nameA.localeCompare(nameB, 'th');
     });
 
-    // Calculate Group Totals
+    // Calculate Group Totals for Dates and Products
     const groupTotals = sortedData.reduce((acc, item) => {
-        const name = item['Spare Part Name'] || 'Unknown';
+        const date = item['Claim Date'] || 'Unknown';
+        const prod = item['Product'] || 'Unknown';
         const qty = parseFloat(item['Qty']) || 0;
-        acc[name] = (acc[name] || 0) + qty;
+
+        if (!acc[date]) acc[date] = { total: 0, products: {} };
+        acc[date].total += qty;
+
+        if (!acc[date].products[prod]) acc[date].products[prod] = 0;
+        acc[date].products[prod] += qty;
+
         return acc;
     }, {});
 
     // Headers (Same as Supplier)
     tableHeader.innerHTML = '';
     SUPPLIER_COLUMNS.forEach(col => {
-        // Enable Checkbox for Sent Claim view
-        // if (col.key === 'checkbox') return; // REMOVED SKIP
-
         const th = document.createElement('th');
         if (col.key === 'checkbox') {
             th.innerHTML = '<input type="checkbox" id="selectAllClaimSent" onclick="toggleAllClaimSentCheckboxes(this)">';
@@ -722,45 +741,96 @@ function renderClaimSentTable() {
 
     tableBody.innerHTML = '';
 
-    // Track previous for grouping
-    let previousPartName = null;
+    // Track previous for grouping (Claim Date)
+    let previousClaimDate = null;
+    let previousProduct = null;
+
     if (currentClaimSentPage > 1 && sortedData[startIndex - 1]) {
-        previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
+        previousClaimDate = sortedData[startIndex - 1]['Claim Date'];
+        previousProduct = sortedData[startIndex - 1]['Product'];
     }
 
     // Store for "Select All" logic
     currentClaimSentDisplayedData = sortedData;
 
     pageData.forEach((item, index) => {
-        const currentPartName = item['Spare Part Name'] || 'Unknown';
-        const currentPartCode = item['Spare Part Code'] || '';
+        const currentClaimDate = item['Claim Date'] || 'Unknown';
+        const currentProduct = item['Product'] || 'Unknown';
 
-        // Group Header
-        if (currentPartName !== previousPartName) {
+        // Group Header (Claim Date)
+        if (currentClaimDate !== previousClaimDate) {
             const headerRow = document.createElement('tr');
             headerRow.className = 'group-header-row';
-            headerRow.style.backgroundColor = '#f8fafc';
+            headerRow.style.backgroundColor = '#e0f2fe'; // Light Blue for Date
             headerRow.style.fontWeight = 'bold';
 
             const headerCell = document.createElement('td');
-            headerCell.colSpan = SUPPLIER_COLUMNS.length; // Full width
+            headerCell.colSpan = SUPPLIER_COLUMNS.length;
             headerCell.style.padding = '12px';
-            headerCell.style.borderTop = '2px solid #e2e8f0';
-            headerCell.style.color = '#334155';
+            headerCell.style.borderTop = '2px solid #cbd5e1';
+            headerCell.style.color = '#0f172a';
 
-            const total = groupTotals[currentPartName] || 0;
+            const total = groupTotals[currentClaimDate]?.total || 0;
+            const safeDate = currentClaimDate.replace(/'/g, "\\'");
+            const isFilterActive = activeClaimDateFilter === currentClaimDate;
+            const filterLabel = isFilterActive ? '❌ Show All' : '🔍 Filter Only';
+            const filterStyle = isFilterActive ? 'color: #ef4444; font-weight: bold;' : 'color: #64748b;';
+
             headerCell.innerHTML = `
-                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="filterClaimSentByDate('${safeDate}')" title="${isFilterActive ? 'Click to show all dates' : 'Click to show only this date'}">
                      <div style="display:flex; align-items:center; gap:0.5rem;">
-                         <span>📦 ${currentPartName}</span>
-                         <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
-                         <span style="font-size:0.85em; color:#0369a1; font-weight:bold;">(${total.toLocaleString()} Pc)</span>
+                         <span style="font-size: 1.1em;">📅 ${currentClaimDate}</span>
+                         <span style="font-size:0.9em; color:#0369a1; font-weight:bold;">(Total: ${total.toLocaleString()} Pc)</span>
                      </div>
+                     <div style="font-size: 0.8em; ${filterStyle}">${filterLabel}</div>
                  </div>
              `;
             headerRow.appendChild(headerCell);
             tableBody.appendChild(headerRow);
-            previousPartName = currentPartName;
+            
+            previousClaimDate = currentClaimDate;
+            previousProduct = null; // Reset product grouping when date changes
+        }
+
+        // Sub-Group Header (Product)
+        if (currentProduct !== previousProduct) {
+            const prodHeaderRow = document.createElement('tr');
+            prodHeaderRow.className = 'sub-group-header-row';
+            prodHeaderRow.style.backgroundColor = '#f8fafc'; // Very light gray for Product
+            prodHeaderRow.style.fontWeight = 'bold';
+
+            const prodHeaderCell = document.createElement('td');
+            prodHeaderCell.colSpan = SUPPLIER_COLUMNS.length;
+            prodHeaderCell.style.padding = '8px 12px 8px 32px'; // Indent
+            prodHeaderCell.style.borderTop = '1px solid #e2e8f0';
+            prodHeaderCell.style.color = '#334155';
+
+            // Check if all eligible items in this group are selected
+            const groupItems = sortedData.filter(d => (d['Claim Date'] || 'Unknown') === currentClaimDate && (d['Product'] || 'Unknown') === currentProduct);
+            const eligibleGroupItems = groupItems.filter(item => {
+                 const action = item['Warranty Action'] || item['ActionStatus'];
+                 const hasAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+                 return !hasAction && (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '');
+            });
+            const allSelected = eligibleGroupItems.length > 0 && eligibleGroupItems.every(d => selectedClaimSentKeys.has(getSupplierKey(d)));
+            const checkedStr = allSelected ? 'checked' : '';
+            const safeDate = currentClaimDate.replace(/'/g, "\\'");
+            const safeProduct = currentProduct.replace(/'/g, "\\'");
+
+            const prodTotal = groupTotals[currentClaimDate]?.products[currentProduct] || 0;
+            prodHeaderCell.innerHTML = `
+                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <input type="checkbox" onclick="toggleClaimSentProductGroup(this, '${safeDate}', '${safeProduct}')" ${checkedStr} style="cursor: pointer;">
+                         <span>📦 ${currentProduct}</span>
+                         <span style="font-size:0.85em; color:#475569; font-weight:normal;">(${prodTotal.toLocaleString()} Pc)</span>
+                     </div>
+                 </div>
+             `;
+            prodHeaderRow.appendChild(prodHeaderCell);
+            tableBody.appendChild(prodHeaderRow);
+
+            previousProduct = currentProduct;
         }
 
         const tr = document.createElement('tr');
@@ -796,13 +866,7 @@ function renderClaimSentTable() {
                 return;
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
-                td.style.cursor = 'pointer';
-                td.style.color = 'var(--primary-color)';
-                td.style.textDecoration = 'underline';
-                td.onclick = function (e) {
-                    e.stopPropagation();
-                    openWorkOrderModal(item);
-                };
+                // Action Removed as requested
             } else {
                 if ((col.key === 'Timestamp' || col.key === 'RecripteDate' || col.key === 'Claim Date') && value) {
                     const date = new Date(value);
@@ -915,6 +979,39 @@ function handleClaimSentCheckboxChange(checkbox) {
     renderClaimSentTable();
 }
 
+function toggleClaimSentProductGroup(source, date, product) {
+    const isChecked = source.checked;
+    if (!currentClaimSentDisplayedData) return;
+
+    currentClaimSentDisplayedData.forEach(item => {
+        const itemDate = item['Claim Date'] || 'Unknown';
+        const itemProduct = item['Product'] || 'Unknown';
+        
+        if (itemDate === date && itemProduct === product) {
+             const action = item['Warranty Action'] || item['ActionStatus'];
+             const hasAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+             const isClaimSent = !hasAction && (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '');
+             
+             if (isClaimSent) {
+                 const key = getSupplierKey(item);
+                 if (isChecked) selectedClaimSentKeys.add(key);
+                 else selectedClaimSentKeys.delete(key);
+             }
+        }
+    });
+    renderClaimSentTable();
+}
+
+function filterClaimSentByDate(dateStr) {
+    if (activeClaimDateFilter === dateStr) {
+        activeClaimDateFilter = null; // Toggle off
+    } else {
+        activeClaimDateFilter = dateStr;
+    }
+    currentClaimSentPage = 1;
+    renderClaimSentTable();
+}
+
 async function handleWarrantyAction(status) {
     if (selectedClaimSentKeys.size === 0) return;
 
@@ -1004,8 +1101,12 @@ function renderHistoryTable() {
 
     // 1. FILTER BY USER PLANT (Added)
     const userPlant = getEffectiveUserPlant();
+    const userStatus = getCurrentUserStatus();
     if (userPlant) {
         allowedData = allowedData.filter(item => {
+            // Allow if User Status matches Claim Receiver
+            if (userStatus && item['Claim Receiver'] === userStatus) return true;
+
             const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
             return String(itemPlant).trim().padStart(4, '0') === userPlant;
         });
