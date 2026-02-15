@@ -461,6 +461,8 @@
                 <button class="btn-primary" id="btnSaveStore" onclick="saveStoreDetail()">Confirm & Save</button>
                 <button class="btn-warning" id="btnUpdateStore" onclick="saveStoreDetail()"
                     style="display: none;">แก้ไข</button>
+                <button class="btn-danger" id="btnCancelBookingSlipStore" onclick="cancelBookingSlipFromStoreModal()"
+                    style="display: none; background-color: #f97316; border-color: #ea580c;">ยกเลิกใบจองรถ</button>
                 <button class="btn-danger" id="btnDeleteStore" onclick="deleteStoreDetail()"
                     style="display: none;">ลบ</button>
             </div>
@@ -1160,6 +1162,8 @@
 
                 <div class="modal-actions" style="margin-top: 1rem; padding-top: 0.5rem;">
                     <button class="btn" onclick="closeWorkOrderModal()" style="padding: 0.4rem 1rem;">Close</button>
+                    <button id="btnDeleteBookingSlip" class="btn" onclick="deleteBookingSlipFromModal()" 
+                        style="display: none; padding: 0.4rem 1rem; margin-left: 10px; background-color: #ef4444; color: white; border: none;">ลบใบจองรถ</button>
                     <button id="btnSaveWorkOrder" class="btn btn-primary" onclick="saveWorkOrderDetail()"
                         style="padding: 0.4rem 1rem;">Save Changes</button>
 

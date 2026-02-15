@@ -240,7 +240,7 @@ function renderBookingTable() {
             // Allow if User Status matches Claim Receiver
             if (userStatus && row['Claim Receiver'] === userStatus) return true;
 
-            const rowPlant = row['Plant'] ? row['Plant'].toString().trim().padStart(4, '0') : '';
+            const rowPlant = normalizePlantCode(row['Plant']);
             return rowPlant === userPlant;
         });
     }
@@ -517,6 +517,9 @@ function handleBookingStatusClick(row) {
     }
 
     if (match) {
+        // Attach booking info to the matched item for the modal to use
+        match.bookingSlip = row['Booking Slip'];
+        match.bookingDate = row['Booking Date'];
         openStoreModal(match);
     } else {
         // Fallback: Create a temporary object structure compatible with openStoreModal
@@ -546,7 +549,9 @@ function handleBookingStatusClick(row) {
             },
             status: row['ActionStatus'] || row['Warranty Action'] || 'เคลมประกัน',
             technicianPhone: row['Mobile'] || '',
-            person: row['Claim Receiver'] || row['person']
+            person: row['Claim Receiver'] || row['person'],
+            bookingSlip: row['Booking Slip'],
+            bookingDate: row['Booking Date']
         };
         openStoreModal(tempItem);
     }

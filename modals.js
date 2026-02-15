@@ -25,6 +25,15 @@ function openWorkOrderModal(item, context = 'edit') {
     const btnSave = document.getElementById('btnSaveWorkOrder');
     const btnDecision = document.getElementById('warrantyDecisionButtons');
     const btnCancel = document.getElementById('btnCancelWarranty');
+    const btnDeleteBooking = document.getElementById('btnDeleteBookingSlip');
+
+    if (btnDeleteBooking) {
+        const userStatus = getCurrentUserStatus();
+        const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
+        // Show only if User is None AND Item has Booking Slip
+        if (userStatus === 'None' && hasBookingSlip) btnDeleteBooking.style.display = 'inline-block';
+        else btnDeleteBooking.style.display = 'none';
+    }
 
     if (context === 'warrantyDecision') {
         if (btnSave) btnSave.style.display = 'none';
@@ -76,6 +85,85 @@ async function handleWarrantyDecision(decision) {
 function closeWorkOrderModal() {
     document.getElementById('workOrderModal').style.display = 'none';
     editingItem = null;
+}
+
+async function deleteBookingSlipFromModal() {
+    if (!editingItem) return;
+
+    const result = await Swal.fire({
+        title: 'ยืนยันการลบใบจองรถ?',
+        text: "คุณต้องการลบข้อมูลใบจองรถและวันที่จองรถออกจากรายการนี้ใช่หรือไม่?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'ใช่, ลบเลย',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userName = currentUser.name || currentUser.IDRec || 'Unknown';
+
+    // Robust Data Lookup
+    let dateReceived = editingItem['วันที่รับซาก'];
+    let receiver = editingItem['ผู้รับซาก'];
+    let keep = editingItem['Keep'];
+    let ciName = editingItem['CI Name'];
+    let problem = editingItem['Problem'];
+    let productType = editingItem['Product Type'];
+
+    if ((!dateReceived || !receiver || !keep || !ciName || !problem || !productType) && typeof fullData !== 'undefined') {
+        const targetKey = ((editingItem['Work Order'] || '') + (editingItem['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        const match = fullData.find(d => {
+            const dKey = ((d.scrap['work order'] || '') + (d.scrap['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+            return dKey === targetKey;
+        });
+        if (match) {
+            const getVal = (obj, keyName) => { if (!obj) return ''; const cleanKey = keyName.replace(/\s+/g, '').toLowerCase(); const found = Object.keys(obj).find(k => k.replace(/\s+/g, '').toLowerCase() === cleanKey); return found ? obj[found] : ''; };
+            if (!dateReceived) dateReceived = getVal(match.scrap, 'วันที่รับซาก') || getVal(match.scrap, 'Date Received');
+            if (!receiver) receiver = getVal(match.scrap, 'ผู้รับซาก') || getVal(match.scrap, 'Receiver');
+            if (!keep) keep = getVal(match.scrap, 'Keep');
+            if (!ciName) ciName = match.fullRow['CI Name'] || '';
+            if (!problem) problem = match.fullRow['Problem'] || '';
+            if (!productType) productType = match.fullRow['Product Type'] || '';
+        }
+    }
+
+    const payload = {
+        ...editingItem,
+        'Booking Slip': '',
+        'Booking Date': '',
+        'user': userName,
+        'วันที่รับซาก': dateReceived || '',
+        'ผู้รับซาก': receiver || '',
+        'Keep': keep || '',
+        'CI Name': ciName || '',
+        'Problem': problem || '',
+        'Product Type': productType || ''
+    };
+
+    // Optimistic Update
+    editingItem['Booking Slip'] = '';
+    editingItem['Booking Date'] = '';
+
+    SaveQueue.add(payload);
+
+    // Refresh Views
+    if (typeof currentDetailContext !== 'undefined' && currentDetailContext) {
+        if (typeof renderTopLevelDetailTable === 'function') {
+             renderTopLevelDetailTable(currentDetailContext.tabKey, currentDetailContext.slip, currentDetailContext.targetReceiver);
+        }
+        if (currentDetailContext.tabKey === 'navanakorn' && typeof renderDeckView === 'function') renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+        if (currentDetailContext.tabKey === 'vibhavadi' && typeof renderDeckView === 'function') renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+    }
+    
+    if (typeof renderBookingTable === 'function') renderBookingTable();
+
+    closeWorkOrderModal();
+
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    Toast.fire({ icon: 'success', title: 'ลบใบจองรถเรียบร้อย' });
 }
 
 async function saveWorkOrderDetail(isCancel = false) {
@@ -362,6 +450,16 @@ function openStoreModal(item) {
     const btnSave = document.getElementById('btnSaveStore');
     const btnUpdate = document.getElementById('btnUpdateStore');
     const btnDelete = document.getElementById('btnDeleteStore');
+    const btnCancelBooking = document.getElementById('btnCancelBookingSlipStore');
+
+    if (btnCancelBooking) {
+        // Show button if item has a booking slip (passed from handleBookingStatusClick)
+        if (item.bookingSlip && String(item.bookingSlip).trim() !== '') {
+            btnCancelBooking.style.display = 'inline-block';
+        } else {
+            btnCancelBooking.style.display = 'none';
+        }
+    }
 
     if (item.status) {
         btnSave.style.display = 'none';
@@ -504,6 +602,56 @@ async function deleteStoreDetail() {
     closeStoreModal();
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
     Toast.fire({ icon: 'success', title: 'Record deleted' });
+}
+
+async function cancelBookingSlipFromStoreModal() {
+    if (!editingItem) return;
+
+    const result = await Swal.fire({
+        title: 'ยกเลิกใบจองรถ?',
+        text: "คุณต้องการลบข้อมูลใบจองรถและวันที่จองรถออกจากรายการนี้ใช่หรือไม่?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'ใช่, ยกเลิก',
+        cancelButtonText: 'ไม่'
+    });
+
+    if (!result.isConfirmed) return;
+
+    // Find the item in globalBookingData to update
+    const workOrder = (editingItem.scrap && editingItem.scrap['work order']) || editingItem['Work Order'] || '';
+    const partCode = (editingItem.scrap && editingItem.scrap['Spare Part Code']) || editingItem['Spare Part Code'] || '';
+    const targetKey = (workOrder + partCode).replace(/\s/g, '').toLowerCase();
+
+    const globalItem = globalBookingData.find(row => {
+        const rowKey = ((row['Work Order'] || '') + (row['Spare Part Code'] || '')).replace(/\s/g, '').toLowerCase();
+        return rowKey === targetKey;
+    });
+
+    if (globalItem) {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const payload = {
+            ...globalItem,
+            'Booking Slip': '',
+            'Booking Date': '',
+            'Plantcenter': '',
+            'user': currentUser.IDRec || 'Unknown'
+        };
+
+        // Optimistic Update
+        globalItem['Booking Slip'] = '';
+        globalItem['Booking Date'] = '';
+        globalItem['Plantcenter'] = '';
+
+        SaveQueue.add(payload);
+
+        if (typeof renderBookingTable === 'function') renderBookingTable();
+        
+        closeStoreModal();
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+        Toast.fire({ icon: 'success', title: 'ยกเลิกใบจองรถเรียบร้อย' });
+    }
 }
 
 async function openBookingSlipModal(item) {

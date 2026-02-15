@@ -171,6 +171,7 @@ function renderSupplierTable() {
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const filterValue = filterSelect ? filterSelect.value : '';
     const statusValue = statusFilter ? statusFilter.value : '';
+    const isReadOnly = getCurrentUserStatus() === 'None';
     let supplierData = globalBookingData.filter(isSupplierItemVisible);
 
     // 1. FILTER BY USER PLANT (Added)
@@ -181,8 +182,8 @@ function renderSupplierTable() {
             // Allow if User Status matches Claim Receiver
             if (userStatus && item['Claim Receiver'] === userStatus) return true;
 
-            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
-            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+            const itemPlant = normalizePlantCode(item['Plant'] || item['plant'] || item['PLANT']);
+            return itemPlant === userPlant;
         });
     }
     const dropdown = document.getElementById('supplierProductDropdown');
@@ -249,7 +250,11 @@ function renderSupplierTable() {
     tableHeader.innerHTML = '';
     SUPPLIER_COLUMNS.forEach(col => {
         const th = document.createElement('th');
-        if (col.header.includes('<')) th.innerHTML = col.header;
+        if (col.header.includes('<')) {
+            // Hide Select All checkbox if Read Only
+            if (col.key === 'checkbox' && isReadOnly) th.innerHTML = '';
+            else th.innerHTML = col.header;
+        }
         else th.textContent = col.header;
         tableHeader.appendChild(th);
     });
@@ -349,8 +354,9 @@ function renderSupplierTable() {
             const td = document.createElement('td');
             let value = item[col.key] || '';
             if (col.key === 'checkbox') {
-                const globalIndex = startIndex + index;
                 const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+                if (!isReadOnly) {
+                    const globalIndex = startIndex + index;
                 const disabledAttr = isClaimed ? 'disabled' : '';
                 const action = item['Warranty Action'] || item['ActionStatus'];
                 const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
@@ -366,19 +372,22 @@ function renderSupplierTable() {
                 } else {
                     td.innerHTML = '';
                 }
+                } else {
+                    td.innerHTML = '';
+                }
                 td.style.textAlign = 'center';
                 if (isClaimed) td.style.opacity = '0.5';
             } else if (col.key === 'CustomStatus') {
                 td.innerHTML = getComputedStatus(item);
                 const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-                if (!isClaimed) {
+                if (!isReadOnly && !isClaimed) {
                     td.style.cursor = 'pointer';
                     td.title = 'Click to Send Claim';
                     td.onclick = function (e) {
                         e.stopPropagation();
                         sendSingleClaim(item);
                     };
-                } else {
+                } else if (!isReadOnly) {
                     td.style.cursor = 'pointer';
                     td.title = 'Click to Cancel Claim';
                     td.onclick = function (e) {
@@ -394,7 +403,7 @@ function renderSupplierTable() {
                 const isWaiting = !isClaimed && !hasFinalAction;
                 const isAllowedStatus = action === 'หมดประกัน' || action === 'Sworp' || action === 'ชำรุด';
 
-                if (isWaiting || isAllowedStatus) {
+                if (!isReadOnly && (isWaiting || isAllowedStatus)) {
                     td.style.cursor = 'pointer';
                     td.style.color = 'var(--primary-color)';
                     td.style.textDecoration = 'underline';
@@ -449,7 +458,7 @@ function renderSupplierTable() {
         selectAll.checked = false; selectAll.indeterminate = false;
     }
 
-    if (selectedSupplierKeys.size > 0) {
+    if (selectedSupplierKeys.size > 0 && !isReadOnly) {
         bulkActions.style.display = 'flex';
         // Optional: Update button text to show count
         // const btn = bulkActions.querySelector('button');
@@ -765,6 +774,7 @@ function renderClaimSentTable() {
 
     const receiverValue = receiverSelect ? receiverSelect.value : '';
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const isReadOnly = getCurrentUserStatus() === 'None';
 
     let allowedData = globalBookingData.filter(item => {
         const hasRecripte = item['Recripte'] && item['Recripte'].trim() !== '';
@@ -780,8 +790,8 @@ function renderClaimSentTable() {
             // Allow if User Status matches Claim Receiver
             if (userStatus && item['Claim Receiver'] === userStatus) return true;
 
-            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
-            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+            const itemPlant = normalizePlantCode(item['Plant'] || item['plant'] || item['PLANT']);
+            return itemPlant === userPlant;
         });
     }
 
@@ -848,7 +858,8 @@ function renderClaimSentTable() {
         visibleColCount++;
         const th = document.createElement('th');
         if (col.key === 'checkbox') {
-            th.innerHTML = '<input type="checkbox" id="selectAllClaimSent" onclick="toggleAllClaimSentCheckboxes(this)">';
+            if (isReadOnly) th.innerHTML = '';
+            else th.innerHTML = '<input type="checkbox" id="selectAllClaimSent" onclick="toggleAllClaimSentCheckboxes(this)">';
         } else if (col.header.includes('<')) {
             th.innerHTML = col.header;
         } else {
@@ -963,7 +974,7 @@ function renderClaimSentTable() {
             const td = document.createElement('td');
             let value = item[col.key] || '';
 
-            if (col.key === 'checkbox') {
+            if (col.key === 'checkbox' && !isReadOnly) {
                 const globalIndex = startIndex + index;
                 const key = getSupplierKey(item);
 
@@ -981,12 +992,14 @@ function renderClaimSentTable() {
                 td.style.textAlign = 'center';
             } else if (col.key === 'CustomStatus') {
                 td.innerHTML = getComputedStatus(item);
-                td.style.cursor = 'pointer';
-                td.title = 'Click to update warranty status';
-                td.onclick = function (e) {
-                    e.stopPropagation();
-                    openWorkOrderModal(item, 'warrantyDecision');
-                };
+                if (!isReadOnly) {
+                    td.style.cursor = 'pointer';
+                    td.title = 'Click to update warranty status';
+                    td.onclick = function (e) {
+                        e.stopPropagation();
+                        openWorkOrderModal(item, 'warrantyDecision');
+                    };
+                }
                 tr.appendChild(td);
                 return;
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
@@ -1060,7 +1073,7 @@ function renderClaimSentTable() {
         }
     }
 
-    if (bulkActions) {
+    if (bulkActions && !isReadOnly) {
         bulkActions.style.display = selectedClaimSentKeys.size > 0 ? 'flex' : 'none';
         // Optional: Update button text with count
     }
@@ -1220,6 +1233,7 @@ function renderClaimSummaryTable() {
     const tableBody = document.getElementById('claimSummaryTableBody');
     const searchInput = document.getElementById('claimSummarySearchInput');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const isReadOnly = getCurrentUserStatus() === 'None';
 
     // Data Source: Global Booking Data filtered by Datefinish
     let allowedData = globalBookingData.filter(item => {
@@ -1232,8 +1246,8 @@ function renderClaimSummaryTable() {
     if (userPlant) {
         allowedData = allowedData.filter(item => {
             if (userStatus && item['Claim Receiver'] === userStatus) return true;
-            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
-            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+            const itemPlant = normalizePlantCode(item['Plant'] || item['plant'] || item['PLANT']);
+            return itemPlant === userPlant;
         });
     }
 
@@ -1289,13 +1303,15 @@ function renderClaimSummaryTable() {
                 td.innerHTML = getComputedStatus(item);
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
-                td.style.cursor = 'pointer';
-                td.style.color = 'var(--primary-color)';
-                td.style.textDecoration = 'underline';
-                td.onclick = function (e) {
-                    e.stopPropagation();
-                    openWorkOrderModal(item);
-                };
+                if (!isReadOnly) {
+                    td.style.cursor = 'pointer';
+                    td.style.color = 'var(--primary-color)';
+                    td.style.textDecoration = 'underline';
+                    td.onclick = function (e) {
+                        e.stopPropagation();
+                        openWorkOrderModal(item);
+                    };
+                }
             } else {
                 td.textContent = value;
             }
@@ -1325,6 +1341,7 @@ function renderHistoryTable() {
     const tableBody = document.getElementById('historyTableBody');
     const searchInput = document.getElementById('historySearchInput');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const isReadOnly = getCurrentUserStatus() === 'None';
 
     // Data Source: Global Booking Data (ALL)
     let allowedData = globalBookingData;
@@ -1337,8 +1354,8 @@ function renderHistoryTable() {
             // Allow if User Status matches Claim Receiver
             if (userStatus && item['Claim Receiver'] === userStatus) return true;
 
-            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
-            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+            const itemPlant = normalizePlantCode(item['Plant'] || item['plant'] || item['PLANT']);
+            return itemPlant === userPlant;
         });
 
         // Debug Alert Removed as per user request
@@ -1417,13 +1434,15 @@ function renderHistoryTable() {
 
             if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
-                td.style.cursor = 'pointer';
-                td.style.color = 'var(--primary-color)';
-                td.style.textDecoration = 'underline';
-                td.onclick = function (e) {
-                    e.stopPropagation();
-                    openWorkOrderModal(item);
-                };
+                if (!isReadOnly) {
+                    td.style.cursor = 'pointer';
+                    td.style.color = 'var(--primary-color)';
+                    td.style.textDecoration = 'underline';
+                    td.onclick = function (e) {
+                        e.stopPropagation();
+                        openWorkOrderModal(item);
+                    };
+                }
             } else {
                 if ((col.key === 'Timestamp' || col.key === 'RecripteDate' || col.key === 'Claim Date') && value) {
                     const date = new Date(value);

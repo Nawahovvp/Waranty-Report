@@ -58,10 +58,10 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
     globalBookingData.forEach(item => {
         const slip = item['Booking Slip'];
         const pcCode = String(item['Plantcenter'] || '').trim();
-        const normalize = (s) => s.replace(/^0+/, '');
+        // Use normalizePlantCode for consistent comparison
 
         if (!slip) return;
-        if (normalize(pcCode) !== normalize(targetPlantCode)) return;
+        if (normalizePlantCode(pcCode) !== normalizePlantCode(targetPlantCode)) return;
 
         // SECURITY FILTER: Matches User Plant?
         if (userPlant) {
@@ -70,7 +70,7 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
             if (userStatus && item['Claim Receiver'] === userStatus) {
                 // Allow
             } else {
-                const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0'); // Normalize 0304
+                const itemPlant = normalizePlantCode(item['Plant']);
                 if (itemPlant !== userPlant) return;
             }
         }
@@ -265,6 +265,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     const header = document.getElementById(tabKey + 'ReviewHeader');
     const thead = document.getElementById(tabKey + 'TableHeader');
     const tbody = document.getElementById(tabKey + 'TableBody');
+    const isReadOnly = getCurrentUserStatus() === 'None';
 
     // Filter Data
     let detailData = globalBookingData.filter(item => {
@@ -278,7 +279,7 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
                 if (userStatus && item['Claim Receiver'] === userStatus) {
                     // Allow
                 } else {
-                    const itemPlant = String(item['Plant'] || '').trim().padStart(4, '0');
+                    const itemPlant = normalizePlantCode(item['Plant']);
                     if (itemPlant !== userPlant) return false;
                 }
             }
@@ -335,7 +336,11 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
     BOOKING_COLUMNS.forEach(col => {
         const th = document.createElement('th');
         if (col.key === 'checkbox') {
-            th.innerHTML = `<input type="checkbox" class="select-all-review" onclick="toggleAllReviewCheckboxes(this)" ${isReviewSelectAll ? 'checked' : ''}>`;
+            if (isReadOnly) {
+                th.innerHTML = '';
+            } else {
+                th.innerHTML = `<input type="checkbox" class="select-all-review" onclick="toggleAllReviewCheckboxes(this)" ${isReviewSelectAll ? 'checked' : ''}>`;
+            }
         } else {
             th.innerHTML = col.header;
         }
@@ -355,43 +360,58 @@ function renderTopLevelDetailTable(tabKey, slip, targetReceiver) {
                 let value = item[col.key] || '';
 
                 if (col.key === 'checkbox') {
-                    const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
-                    const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-                    const disabledAttr = hasRecripte ? 'disabled' : '';
-                    // If Global Select All is active, and item is not received (In Transit), check it.
-                    const contextChecked = (isReviewSelectAll && !hasRecripte) ? 'checked' : '';
+                    if (isReadOnly) {
+                        td.innerHTML = '';
+                    } else {
+                        const hasBookingSlip = item['Booking Slip'] && String(item['Booking Slip']).trim() !== '';
+                        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+                        const disabledAttr = hasRecripte ? 'disabled' : '';
+                        // If Global Select All is active, and item is not received (In Transit), check it.
+                        const contextChecked = (isReviewSelectAll && !hasRecripte) ? 'checked' : '';
 
-                    td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${startIndex + index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr} ${contextChecked}>`;
+                        td.innerHTML = `<input type="checkbox" class="review-checkbox" value="${startIndex + index}" onchange="handleReviewCheckboxChange(this)" ${disabledAttr} ${contextChecked}>`;
+                    }
                     td.style.textAlign = 'center';
                 } else if (col.key === 'CustomStatus') {
                     td.innerHTML = getComputedStatus(item);
                     const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
                     const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
 
-                    if (!hasRecripte) {
-                        td.style.cursor = 'pointer';
-                        td.title = 'กดเพื่อยืนยันรับ';
-                        td.onclick = function (e) {
-                            e.stopPropagation();
-                            confirmReceiveItem(item);
-                        };
-                    } else if (hasRecripte && !hasClaimSup) {
-                        td.style.cursor = 'pointer';
-                        td.title = 'กดเพื่อยกเลิกการรับ';
-                        td.onclick = function (e) {
-                            e.stopPropagation();
-                            cancelReceiveItem(item);
-                        };
+                    if (!isReadOnly) {
+                        if (!hasRecripte) {
+                            td.style.cursor = 'pointer';
+                            td.title = 'กดเพื่อยืนยันรับ';
+                            td.onclick = function (e) {
+                                e.stopPropagation();
+                                confirmReceiveItem(item);
+                            };
+                        } else if (hasRecripte && !hasClaimSup) {
+                            td.style.cursor = 'pointer';
+                            td.title = 'กดเพื่อยกเลิกการรับ';
+                            td.onclick = function (e) {
+                                e.stopPropagation();
+                                cancelReceiveItem(item);
+                            };
+                        }
                     }
                 } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                     td.textContent = value;
-                    td.style.cursor = 'pointer';
-                    td.style.color = 'var(--primary-color)';
-                    td.style.textDecoration = 'underline';
-                    td.onclick = function (e) {
-                        e.stopPropagation();
-                        openWorkOrderModal(item);
-                    };
+
+                    const userStatus = getCurrentUserStatus();
+                    const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+                    const isInTransit = !hasRecripte;
+
+                    if (userStatus === 'None' && !isInTransit) {
+                        td.style.cursor = 'default';
+                    } else {
+                        td.style.cursor = 'pointer';
+                        td.style.color = 'var(--primary-color)';
+                        td.style.textDecoration = 'underline';
+                        td.onclick = function (e) {
+                            e.stopPropagation();
+                            openWorkOrderModal(item);
+                        };
+                    }
                 } else {
                     if (col.key === 'Timestamp' && value) {
                         const date = new Date(value);

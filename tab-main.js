@@ -47,8 +47,8 @@ function applyFilters() {
             } else {
                 const p1 = item.scrap ? (item.scrap['plant'] || item.scrap['Plant']) : '';
                 const p2 = item.fullRow ? (item.fullRow['plant'] || item.fullRow['Plant']) : '';
-                const itemPlant = String(p1 || p2 || '').trim().padStart(4, '0');
-                if (itemPlant !== '0000' && itemPlant !== userPlant) return false; // Fail if plant defined and mismatch
+                const itemPlant = normalizePlantCode(p1 || p2);
+                if (itemPlant && itemPlant !== '0000' && itemPlant !== userPlant) return false; // Fail if plant defined and mismatch
             }
         }
 

@@ -246,6 +246,18 @@ function getCurrentUserStatus() {
 }
 
 /**
+ * Normalizes a Plant code to a standard 4-digit format with leading zeros.
+ * Handles inputs like "311", "0311", " 311 ".
+ * Returns "0311" for all above. Returns null if input is empty.
+ */
+function normalizePlantCode(plant) {
+    if (!plant) return null;
+    let s = String(plant).trim().replace(/^0+/, ''); // Remove leading zeros first
+    if (s === '') return '0000'; // Handle '0' or '00'
+    return s.padStart(4, '0'); // Pad back to 4 digits
+}
+
+/**
  * Retrieves the effective Plant code for the current user.
  * Checks 'Plant', 'plant', and falls back to extracting 3-4 digit code from Team/Unit/etc.
  * Returns normalized 4-digit string (e.g. "0304") or null if not found OR if user is Admin.
@@ -283,7 +295,7 @@ function getEffectiveUserPlant() {
         }
 
         if (userPlantRaw) {
-            return String(userPlantRaw).trim().padStart(4, '0');
+            return normalizePlantCode(userPlantRaw);
         }
     } catch (e) {
         console.error("Error in getEffectiveUserPlant:", e);
