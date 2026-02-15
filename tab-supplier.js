@@ -222,7 +222,14 @@ function renderSupplierTable() {
             return Object.values(item).some(val => String(val || '').toLowerCase().includes(searchTerm));
         });
     }
-    const sortedData = [...supplierData].reverse().sort((a, b) => {
+    
+    // Sort Data: Product (Asc) -> Spare Part Name (Asc)
+    const sortedData = [...supplierData].sort((a, b) => {
+        const prodA = a['Product'] || '';
+        const prodB = b['Product'] || '';
+        const prodCompare = prodA.localeCompare(prodB, 'th');
+        if (prodCompare !== 0) return prodCompare;
+
         const nameA = a['Spare Part Name'] || '';
         const nameB = b['Spare Part Name'] || '';
         return nameA.localeCompare(nameB, 'th');
@@ -231,10 +238,18 @@ function renderSupplierTable() {
     // Store globally for bulk actions
     currentSupplierDisplayedData = sortedData;
 
+    // Calculate Group Totals for Products and Spare Parts
     const groupTotals = sortedData.reduce((acc, item) => {
+        const prod = item['Product'] || 'Unknown';
         const name = item['Spare Part Name'] || 'Unknown';
         const qty = parseFloat(item['Qty']) || 0;
-        acc[name] = (acc[name] || 0) + qty;
+        
+        if (!acc[prod]) acc[prod] = { total: 0, parts: {} };
+        acc[prod].total += qty;
+        
+        if (!acc[prod].parts[name]) acc[prod].parts[name] = 0;
+        acc[prod].parts[name] += qty;
+        
         return acc;
     }, {});
 
@@ -251,24 +266,86 @@ function renderSupplierTable() {
     const pageData = sortedData.slice(startIndex, endIndex);
     tableBody.innerHTML = '';
 
+    let previousProduct = null;
     let previousPartName = null;
     if (currentSupplierPage > 1 && sortedData[startIndex - 1]) {
+        previousProduct = sortedData[startIndex - 1]['Product'];
         previousPartName = sortedData[startIndex - 1]['Spare Part Name'];
     }
 
     pageData.forEach((item, index) => {
+        const currentProduct = item['Product'] || 'Unknown';
         const currentPartName = item['Spare Part Name'] || 'Unknown';
         const currentPartCode = item['Spare Part Code'] || '';
+
+        // Level 1: Product Group Header
+        if (currentProduct !== previousProduct) {
+            const prodHeaderRow = document.createElement('tr');
+            prodHeaderRow.className = 'group-header-row';
+            prodHeaderRow.style.backgroundColor = '#e0f2fe'; // Light Blue
+            prodHeaderRow.style.fontWeight = 'bold';
+
+            const prodHeaderCell = document.createElement('td');
+            prodHeaderCell.colSpan = SUPPLIER_COLUMNS.length;
+            prodHeaderCell.style.padding = '12px';
+            prodHeaderCell.style.borderTop = '2px solid #cbd5e1';
+            prodHeaderCell.style.color = '#0f172a';
+
+            // Check if all eligible items in this product group are selected
+            const groupItems = sortedData.filter(d => (d['Product'] || 'Unknown') === currentProduct);
+            const eligibleGroupItems = groupItems.filter(d => !d['ClaimSup']); // Only items not yet claimed
+            const allSelected = eligibleGroupItems.length > 0 && eligibleGroupItems.every(d => selectedSupplierKeys.has(getSupplierKey(d)));
+            const checkedStr = allSelected ? 'checked' : '';
+            const safeProduct = currentProduct.replace(/'/g, "\\'");
+
+            const prodTotal = groupTotals[currentProduct]?.total || 0;
+
+            prodHeaderCell.innerHTML = `
+                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <input type="checkbox" onclick="toggleSupplierProductGroup(this, '${safeProduct}')" ${checkedStr} style="cursor: pointer;">
+                         <span style="font-size: 1.1em;">📦 ${currentProduct}</span>
+                         <span style="font-size:0.9em; color:#0369a1; font-weight:bold;">(Total: ${prodTotal.toLocaleString()} Pc)</span>
+                     </div>
+                 </div>
+             `;
+            prodHeaderRow.appendChild(prodHeaderCell);
+            tableBody.appendChild(prodHeaderRow);
+
+            previousProduct = currentProduct;
+            previousPartName = null; // Reset sub-group
+        }
+
+        // Level 2: Spare Part Name Sub-Group Header
         if (currentPartName !== previousPartName) {
-            const headerRow = document.createElement('tr');
-            headerRow.className = 'group-header-row';
-            headerRow.style.backgroundColor = '#f8fafc';
-            headerRow.style.fontWeight = 'bold';
-            const total = groupTotals[currentPartName] || 0;
-            headerRow.innerHTML = `<td colspan="${SUPPLIER_COLUMNS.length}" style="padding: 12px; border-top: 2px solid #e2e8f0; color: #334155;"><div style="display: flex; justify-content: space-between; align-items: center;"><div style="display:flex; align-items:center; gap:0.5rem;"><span>📦 ${currentPartName}</span><span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span><span style="font-size:0.85em; color:#0369a1; font-weight:bold;">(${total.toLocaleString()} Pc)</span></div></div></td>`;
-            tableBody.appendChild(headerRow);
+            const partHeaderRow = document.createElement('tr');
+            partHeaderRow.className = 'sub-group-header-row';
+            partHeaderRow.style.backgroundColor = '#f8fafc'; // Very light gray
+            partHeaderRow.style.fontWeight = 'bold';
+
+            const partHeaderCell = document.createElement('td');
+            partHeaderCell.colSpan = SUPPLIER_COLUMNS.length;
+            partHeaderCell.style.padding = '8px 12px 8px 32px'; // Indent
+            partHeaderCell.style.borderTop = '1px solid #e2e8f0';
+            partHeaderCell.style.color = '#334155';
+
+            const partTotal = groupTotals[currentProduct]?.parts[currentPartName] || 0;
+            
+            partHeaderCell.innerHTML = `
+                 <div style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <span>🔧 ${currentPartName}</span>
+                         <span style="font-size:0.85em; color:#64748b; font-weight:normal;">(${currentPartCode})</span>
+                         <span style="font-size:0.85em; color:#475569; font-weight:normal;">(${partTotal.toLocaleString()} Pc)</span>
+                     </div>
+                 </div>
+             `;
+            partHeaderRow.appendChild(partHeaderCell);
+            tableBody.appendChild(partHeaderRow);
+
             previousPartName = currentPartName;
         }
+
         const tr = document.createElement('tr');
         SUPPLIER_COLUMNS.forEach(col => {
             const td = document.createElement('td');
@@ -395,6 +472,24 @@ function handleSupplierCheckboxChange(checkbox) {
     }
     // Just refresh UI state
     renderSupplierTable();
+}
+
+function toggleSupplierProductGroup(source, product) {
+    const isChecked = source.checked;
+    if (!currentSupplierDisplayedData) return;
+
+    currentSupplierDisplayedData.forEach(item => {
+        const itemProduct = item['Product'] || 'Unknown';
+        // Only select items that belong to this product AND are not yet claimed
+        if (itemProduct === product && !item['ClaimSup']) {
+            const key = getSupplierKey(item);
+            if (isChecked) selectedSupplierKeys.add(key);
+            else selectedSupplierKeys.delete(key);
+        }
+    });
+    
+    renderSupplierTable();
+    handleSupplierCheckboxChange(); // Update UI state for bulk actions
 }
 
 async function sendSingleClaim(item) {
