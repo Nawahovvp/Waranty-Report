@@ -80,9 +80,16 @@ function switchTab(tabId) {
         document.getElementById('tab-content-claimSent').classList.add('active');
         populateClaimSentFilter(); renderClaimSentTable();
         updatePageTitle('ส่งเคลมแล้ว');
-    } else if (tabId === 'history') {
+    } else if (tabId === 'claimSummary') {
         if (tabs[6]) tabs[6].classList.add('active');
         document.querySelectorAll('.sidebar-item')[6]?.classList.add('active');
+        document.getElementById('tab-content-claimSummary').style.display = 'flex';
+        document.getElementById('tab-content-claimSummary').classList.add('active');
+        renderClaimSummaryTable();
+        updatePageTitle('สรุปเคลมประกัน');
+    } else if (tabId === 'history') {
+        if (tabs[7]) tabs[7].classList.add('active');
+        document.querySelectorAll('.sidebar-item')[7]?.classList.add('active');
         document.getElementById('tab-content-history').style.display = 'flex';
         document.getElementById('tab-content-history').classList.add('active');
         renderHistoryTable();

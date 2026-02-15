@@ -75,14 +75,15 @@ const SUPPLIER_COLUMNS = [
     { header: 'ส่งคลัง', key: 'Plantcenter' },
     { header: 'Plant', key: 'Plant' },
     { header: 'Product', key: 'Product' },
-    { header: 'สถานะเคลม', key: 'Warranty Action' },
+    // { header: 'สถานะเคลม', key: 'Warranty Action' },
     // { header: 'คลังพื้นที่', key: 'Recorder' },
-    { header: 'ศูนย์อะไหล่', key: 'Recripte' },
-    { header: 'วันที่ศูนย์อะไหล่', key: 'RecripteDate' },
+    // { header: 'ศูนย์อะไหล่', key: 'Recripte' },
+    // { header: 'วันที่ศูนย์อะไหล่', key: 'RecripteDate' },
     // { header: 'วันที่รับเคลม', key: 'Timestamp' },
-    // { header: 'วันที่จองรถ', key: 'Booking Date' },
+    { header: 'วันที่จองรถ', key: 'Booking Date' },
     { header: 'วันที่ส่งเคลม', key: 'Claim Date' },
-    { header: 'ผุ้ส่งเคลม', key: 'ClaimSup' }
+    { header: 'ผุ้ส่งเคลม', key: 'ClaimSup' },
+    { header: 'วันที่จบงาน', key: 'Datefinish' }
 ];
 
 let allEmployees = [];

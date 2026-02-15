@@ -145,6 +145,9 @@ function renderTable() {
                 if (item.status === 'Sworp') { bgColor = '#e0e7ff'; textColor = '#3730a3'; }
                 else if (item.status === 'หมดประกัน') { bgColor = '#ffedd5'; textColor = '#9a3412'; }
                 else if (item.status === 'ชำรุด') { bgColor = '#fce7f3'; textColor = '#9d174d'; }
+                else if (item.status === 'ไม่รับประกัน') { bgColor = '#fee2e2'; textColor = '#991b1b'; }
+                else if (item.status === 'เคลมสำเร็จ') { bgColor = '#166534'; textColor = '#ffffff'; }
+                else if (item.status === 'ส่งเคลมแล้ว') { bgColor = '#ffedd5'; textColor = '#c2410c'; }
                 span.style.backgroundColor = bgColor; span.style.color = textColor; span.style.fontSize = '0.875rem'; span.style.fontWeight = '600'; span.style.padding = '0.25rem 0.5rem'; span.style.borderRadius = '4px'; span.style.display = 'inline-block';
                 td.appendChild(span);
             } else if (isReadyForClaim && readyColumns.includes(col.key)) {

@@ -1,6 +1,7 @@
 let supplierProductOptions = new Set();
 let currentSupplierPage = 1;
 let currentClaimSentPage = 1;
+let currentClaimSummaryPage = 1;
 let currentHistoryPage = 1;
 let currentSupplierDisplayedData = [];
 // Global Selection Helper
@@ -37,6 +38,19 @@ function isDateToday(dateStr) {
     return false;
 }
 
+function isSupplierItemVisible(item) {
+    const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
+    if (!hasRecripte) return false;
+
+    const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+    const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
+    const action = item['Warranty Action'] || item['ActionStatus'];
+    const isFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+
+    if (!hasClaimSup && !isFinalAction) return true; // Show if waiting for claim
+    return isDateToday(claimDate); // Show if sent today
+}
+
 function handleSupplierSearch() { currentSupplierPage = 1; renderSupplierTable(); }
 
 function populateSupplierProductFilter(data) {
@@ -44,14 +58,7 @@ function populateSupplierProductFilter(data) {
     if (!dropdown) return;
     let sourceData = data;
     if (!sourceData) {
-        sourceData = globalBookingData.filter(item => {
-            const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-            const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-            const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
-            if (!hasRecripte) return false;
-            if (!hasClaimSup || !claimDate) return true;
-            return isDateToday(claimDate);
-        });
+        sourceData = globalBookingData.filter(isSupplierItemVisible);
     }
     const uniqueProducts = new Set();
     sourceData.forEach(item => {
@@ -109,14 +116,7 @@ window.addEventListener('click', function (e) {
 
 function populateSupplierFilter() {
     const filterSelect = document.getElementById('supplierPartFilter');
-    let supplierItems = globalBookingData.filter(item => {
-        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-        const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
-        if (!hasRecripte) return false;
-        if (!hasClaimSup || !claimDate) return true;
-        return isDateToday(claimDate);
-    });
+    let supplierItems = globalBookingData.filter(isSupplierItemVisible);
     if (filterSelect) {
         const parts = new Set();
         supplierItems.forEach(item => {
@@ -171,14 +171,7 @@ function renderSupplierTable() {
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const filterValue = filterSelect ? filterSelect.value : '';
     const statusValue = statusFilter ? statusFilter.value : '';
-    let supplierData = globalBookingData.filter(item => {
-        const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
-        const hasClaimSup = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
-        const claimDate = item['Claim Date'] ? String(item['Claim Date']).trim() : '';
-        if (!hasRecripte) return false;
-        if (!hasClaimSup || !claimDate) return true;
-        return isDateToday(claimDate);
-    });
+    let supplierData = globalBookingData.filter(isSupplierItemVisible);
 
     // 1. FILTER BY USER PLANT (Added)
     const userPlant = getEffectiveUserPlant();
@@ -293,7 +286,12 @@ function renderSupplierTable() {
 
             // Check if all eligible items in this product group are selected
             const groupItems = sortedData.filter(d => (d['Product'] || 'Unknown') === currentProduct);
-            const eligibleGroupItems = groupItems.filter(d => !d['ClaimSup']); // Only items not yet claimed
+            const eligibleGroupItems = groupItems.filter(d => {
+                const isClaimed = d['ClaimSup'] && String(d['ClaimSup']).trim() !== '';
+                const action = d['Warranty Action'] || d['ActionStatus'];
+                const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+                return !isClaimed && !hasFinalAction;
+            });
             const allSelected = eligibleGroupItems.length > 0 && eligibleGroupItems.every(d => selectedSupplierKeys.has(getSupplierKey(d)));
             const checkedStr = allSelected ? 'checked' : '';
             const safeProduct = currentProduct.replace(/'/g, "\\'");
@@ -354,12 +352,20 @@ function renderSupplierTable() {
                 const globalIndex = startIndex + index;
                 const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
                 const disabledAttr = isClaimed ? 'disabled' : '';
+                const action = item['Warranty Action'] || item['ActionStatus'];
+                const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+                const isWaiting = !isClaimed && !hasFinalAction;
 
                 // New Logic: Check Set
                 const key = getSupplierKey(item);
                 const isChecked = selectedSupplierKeys.has(key) ? 'checked' : '';
 
                 td.innerHTML = `<input type="checkbox" class="supplier-checkbox" value="${globalIndex}" ${disabledAttr} ${isChecked} onchange="handleSupplierCheckboxChange(this)">`;
+                if (isWaiting) {
+                    td.innerHTML = `<input type="checkbox" class="supplier-checkbox" value="${globalIndex}" ${isChecked} onchange="handleSupplierCheckboxChange(this)">`;
+                } else {
+                    td.innerHTML = '';
+                }
                 td.style.textAlign = 'center';
                 if (isClaimed) td.style.opacity = '0.5';
             } else if (col.key === 'CustomStatus') {
@@ -382,10 +388,18 @@ function renderSupplierTable() {
                 }
             } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
                 td.textContent = value;
-                td.style.cursor = 'pointer';
-                td.style.color = 'var(--primary-color)';
-                td.style.textDecoration = 'underline';
-                td.onclick = function (e) { e.stopPropagation(); openWorkOrderModal(item); };
+                const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+                const action = item['Warranty Action'] || item['ActionStatus'];
+                const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+                const isWaiting = !isClaimed && !hasFinalAction;
+                const isAllowedStatus = action === 'หมดประกัน' || action === 'Sworp' || action === 'ชำรุด';
+
+                if (isWaiting || isAllowedStatus) {
+                    td.style.cursor = 'pointer';
+                    td.style.color = 'var(--primary-color)';
+                    td.style.textDecoration = 'underline';
+                    td.onclick = function (e) { e.stopPropagation(); openWorkOrderModal(item); };
+                }
             } else {
                 if ((col.key === 'Timestamp' || col.key === 'RecripteDate' || col.key === 'Claim Date') && value) {
                     const date = new Date(value);
@@ -417,7 +431,12 @@ function renderSupplierTable() {
     const bulkActions = document.getElementById('supplierBulkActions');
 
     // Only items that can be selected (not already claimed)
-    const validItems = sortedData.filter(item => !item['ClaimSup']);
+    const validItems = sortedData.filter(item => {
+        const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        const action = item['Warranty Action'] || item['ActionStatus'];
+        const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+        return !isClaimed && !hasFinalAction;
+    });
 
     if (validItems.length > 0) {
         const allSelected = validItems.every(item => selectedSupplierKeys.has(getSupplierKey(item)));
@@ -446,7 +465,10 @@ function toggleAllSupplierCheckboxes(source) {
     const isChecked = source.checked;
 
     currentSupplierDisplayedData.forEach(item => {
-        if (!item['ClaimSup']) {
+        const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        const action = item['Warranty Action'] || item['ActionStatus'];
+        const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+        if (!isClaimed && !hasFinalAction) {
             const key = getSupplierKey(item);
             if (isChecked) selectedSupplierKeys.add(key);
             else selectedSupplierKeys.delete(key);
@@ -481,7 +503,11 @@ function toggleSupplierProductGroup(source, product) {
     currentSupplierDisplayedData.forEach(item => {
         const itemProduct = item['Product'] || 'Unknown';
         // Only select items that belong to this product AND are not yet claimed
-        if (itemProduct === product && !item['ClaimSup']) {
+        const isClaimed = item['ClaimSup'] && String(item['ClaimSup']).trim() !== '';
+        const action = item['Warranty Action'] || item['ActionStatus'];
+        const hasFinalAction = action && action !== 'เคลมประกัน' && action !== 'Pending' && action !== 'บันทึกแล้ว';
+        
+        if (itemProduct === product && !isClaimed && !hasFinalAction) {
             const key = getSupplierKey(item);
             if (isChecked) selectedSupplierKeys.add(key);
             else selectedSupplierKeys.delete(key);
@@ -816,7 +842,10 @@ function renderClaimSentTable() {
 
     // Headers (Same as Supplier)
     tableHeader.innerHTML = '';
+    let visibleColCount = 0;
     SUPPLIER_COLUMNS.forEach(col => {
+        if (col.key === 'Booking Slip' || col.key === 'Recripte' || col.key === 'RecripteDate') return; // Hide Booking Slip, Recripte, RecripteDate
+        visibleColCount++;
         const th = document.createElement('th');
         if (col.key === 'checkbox') {
             th.innerHTML = '<input type="checkbox" id="selectAllClaimSent" onclick="toggleAllClaimSentCheckboxes(this)">';
@@ -860,7 +889,7 @@ function renderClaimSentTable() {
             headerRow.style.fontWeight = 'bold';
 
             const headerCell = document.createElement('td');
-            headerCell.colSpan = SUPPLIER_COLUMNS.length;
+            headerCell.colSpan = visibleColCount;
             headerCell.style.padding = '12px';
             headerCell.style.borderTop = '2px solid #cbd5e1';
             headerCell.style.color = '#0f172a';
@@ -895,7 +924,7 @@ function renderClaimSentTable() {
             prodHeaderRow.style.fontWeight = 'bold';
 
             const prodHeaderCell = document.createElement('td');
-            prodHeaderCell.colSpan = SUPPLIER_COLUMNS.length;
+            prodHeaderCell.colSpan = visibleColCount;
             prodHeaderCell.style.padding = '8px 12px 8px 32px'; // Indent
             prodHeaderCell.style.borderTop = '1px solid #e2e8f0';
             prodHeaderCell.style.color = '#334155';
@@ -930,6 +959,7 @@ function renderClaimSentTable() {
 
         const tr = document.createElement('tr');
         SUPPLIER_COLUMNS.forEach(col => {
+            if (col.key === 'Booking Slip' || col.key === 'Recripte' || col.key === 'RecripteDate') return; // Hide Booking Slip, Recripte, RecripteDate
             const td = document.createElement('td');
             let value = item[col.key] || '';
 
@@ -1178,6 +1208,111 @@ function changeClaimSentPage(newPage) {
     if (newPage < 1) return;
     currentClaimSentPage = newPage;
     renderClaimSentTable();
+}
+
+// ==========================================================
+// CLAIM SUMMARY TAB LOGIC (NEW)
+// ==========================================================
+
+function renderClaimSummaryTable() {
+    console.log("--- renderClaimSummaryTable called ---");
+    const tableHeader = document.getElementById('claimSummaryTableHeader');
+    const tableBody = document.getElementById('claimSummaryTableBody');
+    const searchInput = document.getElementById('claimSummarySearchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // Data Source: Global Booking Data filtered by Datefinish
+    let allowedData = globalBookingData.filter(item => {
+        return item['Datefinish'] && String(item['Datefinish']).trim() !== '';
+    });
+
+    // Filter by User Plant
+    const userPlant = getEffectiveUserPlant();
+    const userStatus = getCurrentUserStatus();
+    if (userPlant) {
+        allowedData = allowedData.filter(item => {
+            if (userStatus && item['Claim Receiver'] === userStatus) return true;
+            const itemPlant = item['Plant'] || item['plant'] || item['PLANT'];
+            return String(itemPlant).trim().padStart(4, '0') === userPlant;
+        });
+    }
+
+    // Search Filter
+    if (searchTerm) {
+        allowedData = allowedData.filter(item => {
+            return Object.values(item).some(val =>
+                String(val).toLowerCase().includes(searchTerm)
+            );
+        });
+    }
+
+    // Sort Data: Datefinish Descending
+    const sortedData = [...allowedData].sort((a, b) => {
+        const parse = (d) => {
+            if (!d) return 0;
+            // Try parsing DD/MM/YYYY
+            const parts = String(d).split(',')[0].split('/');
+            if (parts.length === 3) {
+                return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+            }
+            return 0;
+        };
+        return parse(b['Datefinish']) - parse(a['Datefinish']);
+    });
+
+    // Headers
+    tableHeader.innerHTML = '';
+    SUPPLIER_COLUMNS.forEach(col => {
+        if (col.key === 'Booking Slip' || col.key === 'Recripte' || col.key === 'RecripteDate') return; // Hide Booking Slip, Recripte, RecripteDate
+        if (col.key === 'checkbox') return; // No checkbox needed
+        const th = document.createElement('th');
+        th.textContent = col.header;
+        tableHeader.appendChild(th);
+    });
+
+    // Pagination
+    const startIndex = (currentClaimSummaryPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const pageData = sortedData.slice(startIndex, endIndex);
+
+    tableBody.innerHTML = '';
+
+    pageData.forEach((item) => {
+        const tr = document.createElement('tr');
+        SUPPLIER_COLUMNS.forEach(col => {
+            if (col.key === 'Booking Slip' || col.key === 'Recripte' || col.key === 'RecripteDate') return; // Hide Booking Slip, Recripte, RecripteDate
+            if (col.key === 'checkbox') return;
+            const td = document.createElement('td');
+            let value = item[col.key] || '';
+
+            if (col.key === 'CustomStatus') {
+                td.innerHTML = getComputedStatus(item);
+            } else if (col.key === 'Work Order' || col.key === 'Serial Number') {
+                td.textContent = value;
+                td.style.cursor = 'pointer';
+                td.style.color = 'var(--primary-color)';
+                td.style.textDecoration = 'underline';
+                td.onclick = function (e) {
+                    e.stopPropagation();
+                    openWorkOrderModal(item);
+                };
+            } else {
+                td.textContent = value;
+            }
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+
+    const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE);
+    if (currentClaimSummaryPage > totalPages) currentClaimSummaryPage = 1;
+    renderGenericPagination('claimSummaryPaginationControls', currentClaimSummaryPage, totalPages, changeClaimSummaryPage);
+}
+
+function changeClaimSummaryPage(newPage) {
+    if (newPage < 1) return;
+    currentClaimSummaryPage = newPage;
+    renderClaimSummaryTable();
 }
 
 // ==========================================================

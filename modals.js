@@ -142,6 +142,17 @@ async function saveWorkOrderDetail(isCancel = false) {
         payload['Note'] = ''; // Explicitly clear Note in payload
     }
 
+    // Update Claim Date if status changes to a final state (other than 'เคลมประกัน')
+    if (newAction && newAction !== 'เคลมประกัน' && newAction !== 'Pending' && newAction !== 'บันทึกแล้ว') {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const formattedDate = `${day}/${month}/${year}`;
+        payload['Claim Date'] = formattedDate;
+        payload['ClaimSup'] = currentUser.IDRec || 'Unknown';
+    }
+
     // Optimistic Update
     editingItem['Serial Number'] = newSerial;
     editingItem['Note'] = newNote;
@@ -151,6 +162,8 @@ async function saveWorkOrderDetail(isCancel = false) {
     editingItem['RecripteDate'] = payload['RecripteDate'];
     // if (payload['Finish']) editingItem['Finish'] = payload['Finish']; // REMOVED
     if (payload['Datefinish'] !== undefined) editingItem['Datefinish'] = payload['Datefinish'];
+    if (payload['Claim Date']) editingItem['Claim Date'] = payload['Claim Date'];
+    if (payload['ClaimSup']) editingItem['ClaimSup'] = payload['ClaimSup'];
 
     // Queue
     SaveQueue.add(payload);

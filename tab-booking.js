@@ -250,6 +250,11 @@ function renderBookingTable() {
         const hasRecripte = item['Recripte'] && String(item['Recripte']).trim() !== '';
         if (hasClaimSup) return false;
         if (hasRecripte) return false;
+        
+        // Filter only 'เคลมประกัน' for Booking Tab
+        const action = item['ActionStatus'] || item['Warranty Action'] || '';
+        if (action !== 'เคลมประกัน') return false;
+        
         return true;
     });
 

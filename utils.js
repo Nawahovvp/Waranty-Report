@@ -177,11 +177,14 @@ function getComputedStatus(item) {
         if (action === 'Sworp') style = 'background-color: #e0e7ff; color: #3730a3;';
         else if (action === 'หมดประกัน') style = 'background-color: #ffedd5; color: #9a3412;';
         else if (action === 'ชำรุด') style = 'background-color: #fce7f3; color: #9d174d;';
+        else if (action === 'ไม่รับประกัน') style = 'background-color: #fee2e2; color: #991b1b;';
+        else if (action === 'เคลมสำเร็จ') style = 'background-color: #166534; color: #ffffff;';
+        else if (action === 'ส่งเคลมแล้ว') style = 'background-color: #ffedd5; color: #c2410c;';
         return `<span class="status-badge" style="${style}">${action}</span>`;
     }
 
     if (item['ClaimSup'] && String(item['ClaimSup']).trim() !== '') {
-        return '<span class="status-badge status-claim-sent">ส่งเคลมแล้ว</span>';
+        return '<span class="status-badge" style="background-color: #ffedd5; color: #c2410c;">ส่งเคลมแล้ว</span>';
     }
     if (item['Recripte'] && String(item['Recripte']).trim() !== '') {
         return '<span class="status-badge status-waiting-claim">รอส่งเคลม</span>';

@@ -117,10 +117,7 @@ async function loadTableData() {
             warrantyClaimReceiverKey = wHeaders.find(h => h.toLowerCase().includes('claim') && h.toLowerCase().includes('receiver')) || 'Claim Receiver';
         }
 
-        globalBookingData = warrantyData.filter(row => {
-            const action = row['ActionStatus'] || row['Warranty Action'] || '';
-            return action === 'เคลมประกัน';
-        }).map(item => {
+        globalBookingData = warrantyData.map(item => {
             const wo = String(item[warrantyWOKey] || '').trim();
             const code = String(item['Spare Part Code'] || '').trim();
             

@@ -1,5 +1,39 @@
 // Global context for detail view
 let currentDetailContext = null;
+let deckFilterState = {
+    navanakorn: 'Pending',
+    vibhavadi: 'Pending'
+};
+
+function setDeckFilter(tabKey, status) {
+    deckFilterState[tabKey] = status;
+    
+    // Update UI buttons
+    const btnPending = document.getElementById(`btn-${tabKey}-pending`);
+    const btnAll = document.getElementById(`btn-${tabKey}-all`);
+    
+    if (btnPending && btnAll) {
+        if (status === 'Pending') {
+            btnPending.style.backgroundColor = '#f59e0b'; // Orange/Amber
+            btnPending.style.color = 'white';
+            btnPending.style.borderColor = '#d97706';
+            btnAll.style.backgroundColor = '#e5e7eb';
+            btnAll.style.color = '#374151';
+            btnAll.style.borderColor = '#d1d5db';
+        } else {
+            btnAll.style.backgroundColor = '#3b82f6'; // Blue
+            btnAll.style.color = 'white';
+            btnAll.style.borderColor = '#2563eb';
+            btnPending.style.backgroundColor = '#e5e7eb';
+            btnPending.style.color = '#374151';
+            btnPending.style.borderColor = '#d1d5db';
+        }
+    }
+
+    // Re-render based on tabKey
+    if (tabKey === 'navanakorn') renderDeckView('0301', 'navaNakornDeck', 'navanakorn');
+    if (tabKey === 'vibhavadi') renderDeckView('0326', 'vibhavadiDeck', 'vibhavadi');
+}
 
 function renderDeckView(targetPlantCode, containerId, tabKey) {
     const deckContainer = document.getElementById(containerId);
@@ -67,6 +101,18 @@ function renderDeckView(targetPlantCode, containerId, tabKey) {
 
     // Convert to array for custom sorting
     let cardsArray = Array.from(uniqueMap.values());
+
+    // FILTER BY STATUS BUTTON (New Logic)
+    const currentFilter = deckFilterState[tabKey] || 'All';
+    if (currentFilter === 'Pending') {
+        cardsArray = cardsArray.filter(item => {
+            const count = item._count || 1;
+            const recCount = item._recripteCount || 0;
+            // Keep if NOT completed (i.e. recCount < count)
+            // This covers "In Transit" (recCount=0) and "Receiving" (0 < recCount < count)
+            return recCount < count;
+        });
+    }
 
     // Sort: Status Priority (ระหว่างตรวจรับ -> ระหว่างขนส่ง -> เสร็จสิ้น) then Date Descending
     cardsArray.sort((a, b) => {
